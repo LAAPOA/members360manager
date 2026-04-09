@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAAPOA Member Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0B1A33;--navy-light:#132B4F;--gold:#C6973F;--gold-light:#D4AD5E;--gold-dim:rgba(198,151,63,.15);--red:#C0392B;--red-dim:rgba(192,57,43,.12);--green:#27AE60;--green-dim:rgba(39,174,96,.12);--blue:#3498DB;--blue-dim:rgba(52,152,219,.12);--text:#E8E8EC;--text-dim:#8A8FA0;--text-muted:#5A6070;--surface:#0F1F38;--surface-raised:#152A4A;--surface-overlay:#1A3260;--border:rgba(198,151,63,.12);--border-bright:rgba(198,151,63,.3);--radius:8px;--radius-lg:12px;--shadow:0 4px 24px rgba(0,0,0,.3)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);min-height:100vh}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:250px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-brand{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.sidebar-brand .badge{width:42px;height:42px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:var(--navy)}
+.sidebar-brand h1{font-size:15px;font-weight:600;letter-spacing:.5px;line-height:1.3}
+.sidebar-brand span{font-size:11px;color:var(--text-dim);font-weight:400}
+.sidebar-nav{padding:12px;flex:1;overflow-y:auto}
+.nav-section{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);padding:12px 12px 6px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius);cursor:pointer;color:var(--text-dim);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--surface-raised);color:var(--text)}
+.nav-item.active{background:var(--gold-dim);color:var(--gold)}
+.nav-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.nav-item .cnt{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.7}
+.sidebar-stats{padding:14px 20px;border-top:1px solid var(--border)}
+.stat-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0}
+.stat-row .lb{color:var(--text-dim)}.stat-row .vl{color:var(--gold-light);font-family:'JetBrains Mono',monospace;font-weight:500}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{padding:14px 24px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;flex:1;min-width:180px;max-width:340px}
+.search-box input{background:none;border:none;color:var(--text);font-size:14px;outline:none;width:100%;font-family:inherit}
+.search-box input::placeholder{color:var(--text-muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface-raised);color:var(--text);transition:all .15s;font-family:inherit;white-space:nowrap}
+.btn:hover{border-color:var(--border-bright);background:var(--surface-overlay)}
+.btn-gold{background:var(--gold);color:var(--navy);border-color:var(--gold);font-weight:600}
+.btn-gold:hover{background:var(--gold-light);border-color:var(--gold-light)}
+.btn-red{background:var(--red-dim);color:var(--red);border-color:transparent}
+.btn-red:hover{background:var(--red);color:white}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-outline-gold{background:transparent;border-color:var(--gold);color:var(--gold)}
+.btn-outline-gold:hover{background:var(--gold-dim)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--gold-dim);border:1px solid var(--border-bright);border-radius:20px;font-size:12px;color:var(--gold);font-weight:500}
+.pill button{background:none;border:none;color:var(--gold);cursor:pointer;padding:0;display:flex;opacity:.6}
+.pill button:hover{opacity:1}
+.table-wrap{flex:1;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{position:sticky;top:0;z-index:10;background:var(--surface)}
+th{text-align:left;padding:10px 14px;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--gold)}
+td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+tr:hover td{background:var(--surface-raised)}
+.chk{width:18px;height:18px;border:2px solid var(--text-muted);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.chk.on{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.badge-s{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.s-Active{background:var(--green-dim);color:var(--green)}
+.s-Retired{background:var(--gold-dim);color:var(--gold)}
+.s-Inactive{background:rgba(255,255,255,.06);color:var(--text-dim)}
+.s-Probationary{background:var(--blue-dim);color:var(--blue)}
+.racts{display:flex;gap:4px}
+.racts button{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;border-radius:4px;display:flex}
+.racts button:hover{color:var(--gold);background:var(--gold-dim)}
+.racts button.del:hover{color:var(--red);background:var(--red-dim)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;justify-content:flex-end;animation:fi .15s ease}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+@keyframes si{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.panel{width:540px;max-width:95vw;background:var(--surface);height:100vh;display:flex;flex-direction:column;animation:si .2s ease;border-left:1px solid var(--border)}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border)}
+.ph h2{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ph button{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px;display:flex}
+.ph button:hover{color:var(--text)}
+.pb{flex:1;overflow-y:auto;padding:24px}
+.pf{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.fgt{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.fgt:first-child{margin-top:0}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fr.full{grid-template-columns:1fr}
+.fd label{display:block;font-size:12px;font-weight:500;color:var(--text-dim);margin-bottom:4px}
+.fd input,.fd select,.fd textarea{width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .15s}
+.fd input:focus,.fd select:focus,.fd textarea:focus{border-color:var(--gold)}
+.fd textarea{min-height:60px;resize:vertical}
+.fd select{cursor:pointer}
+.ep{width:660px}
+.rsum{background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px}
+.rsum .rc{font-size:22px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace}
+.rsum .rd{font-size:13px;color:var(--text-dim);margin-top:2px}
+.rtags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:80px;overflow-y:auto}
+.rtag{font-size:11px;background:var(--surface-raised);padding:2px 8px;border-radius:12px;color:var(--text-dim)}
+.ef{margin-bottom:14px}
+.ef label{display:block;font-size:12px;font-weight:500;color:var(--text-dim);margin-bottom:4px}
+.ef input,.ef textarea{width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+.ef input:focus,.ef textarea:focus{border-color:var(--gold)}
+.ef textarea{min-height:180px;resize:vertical;font-size:13px;line-height:1.6}
+.efrom{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);margin-bottom:16px}
+.efrom strong{color:var(--text)}
+.mbar{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.mbar .ml{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.mbtn{padding:4px 10px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border-bright);background:var(--gold-dim);color:var(--gold);transition:all .15s;font-family:'JetBrains Mono',monospace}
+.mbtn:hover{background:var(--gold);color:var(--navy)}
+.pvbox{background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:12px;font-size:13px;line-height:1.6;color:var(--text-dim)}
+.pvbox .pvl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px}
+.pvbox .hl{color:var(--gold);font-weight:600}
+.gcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.gcard{background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:all .15s;position:relative}
+.gcard:hover{border-color:var(--border-bright)}
+.gcard.sel{border-color:var(--gold);background:var(--gold-dim)}
+.gcard .gn{font-size:13px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.gcard .gc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold-light)}
+.gcard .gck{position:absolute;top:10px;right:10px}
+.sbar{display:flex;align-items:center;gap:12px;padding:10px 24px;background:var(--gold-dim);border-bottom:1px solid var(--border-bright);font-size:13px;color:var(--gold);font-weight:500}
+.sbar .sc{font-family:'JetBrains Mono',monospace}
+.sat{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;cursor:pointer;transition:all .15s}
+.sat:hover{border-color:var(--border-bright)}
+.sat.on{border-color:var(--gold);background:var(--gold-dim)}
+.sat .sl{font-size:13px;font-weight:600}
+.sat .ss{font-size:11px;color:var(--text-dim)}
+.cinfo{background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;font-size:13px}
+.cinfo code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--surface-raised);padding:2px 6px;border-radius:4px;color:var(--gold-light)}
+.cinfo p{margin-bottom:8px;color:var(--text-dim);line-height:1.5}
+.cinfo p:last-child{margin-bottom:0}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;background:var(--green);color:white;border-radius:var(--radius);font-size:13px;font-weight:500;box-shadow:var(--shadow);z-index:200;animation:fi .2s ease}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-dim);text-align:center;gap:12px}
+.empty p{font-size:14px}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;overflow:hidden;border:1px solid var(--border);margin-bottom:14px}
+.tab{padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--text)}.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.gcr{display:flex;gap:8px;margin-top:12px}
+.gcr input{flex:1;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.gcr input:focus{border-color:var(--gold)}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);padding:20px}
+.login-box{width:380px;max-width:95vw;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px 32px;box-shadow:var(--shadow)}
+.login-box .lb-badge{width:56px;height:56px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--navy);margin:0 auto 16px}
+.login-box h1{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-box .lb-sub{font-size:13px;color:var(--text-dim);text-align:center;margin-bottom:28px}
+.login-box .lf{margin-bottom:16px}
+.login-box .lf label{display:block;font-size:12px;font-weight:500;color:var(--text-dim);margin-bottom:4px}
+.login-box .lf input{width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+.login-box .lf input:focus{border-color:var(--gold)}
+.login-box .lerr{background:var(--red-dim);color:var(--red);padding:8px 12px;border-radius:var(--radius);font-size:13px;margin-bottom:16px}
+.login-box .lbtn{width:100%;padding:12px;background:var(--gold);color:var(--navy);border:none;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+.login-box .lbtn:hover{background:var(--gold-light)}
+.login-box .lbtn:disabled{opacity:.5;cursor:not-allowed}
+.login-box .ldemo{text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted)}
+.login-box .ldemo button{background:none;border:none;color:var(--gold);cursor:pointer;font-family:inherit;font-size:12px;text-decoration:underline}
+.user-bar{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim)}
+.user-bar .uname{color:var(--gold-light);font-weight:600}
+.user-bar .logout{margin-left:auto;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:inherit;text-decoration:underline}
+.user-bar .logout:hover{color:var(--red)}
+@media(max-width:768px){.sidebar{display:none}.panel,.ep{width:100vw}.fr{grid-template-columns:1fr}.toolbar{padding:12px 16px}.gcards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useMemo,useRef} = React;
+const e = React.createElement;
+
+const API_URL = localStorage.getItem('laapoa_api_url') || '';
+
+const FIELDS = [
+  {key:"name",label:"Full Name",type:"text",required:true,group:"personal"},
+  {key:"dob",label:"Date of Birth",type:"date",group:"personal"},
+  {key:"address",label:"Address",type:"text",group:"personal"},
+  {key:"city",label:"City",type:"text",group:"personal"},
+  {key:"state",label:"State",type:"text",group:"personal",default:"CA"},
+  {key:"zip",label:"ZIP",type:"text",group:"personal"},
+  {key:"phone",label:"Phone",type:"tel",group:"personal"},
+  {key:"email",label:"Email",type:"email",required:true,group:"personal"},
+  {key:"serialNumber",label:"Serial Number",type:"text",group:"employment"},
+  {key:"cid",label:"City Employee ID (CID)",type:"text",group:"employment"},
+  {key:"hireDate",label:"Hire Date",type:"date",group:"employment"},
+  {key:"retirement",label:"Retirement System",type:"select",options:["LAFPP","LACERS"],group:"employment"},
+  {key:"department",label:"Department",type:"select",options:["APD","LAWA Admin","Maintenance","Other"],group:"employment"},
+  {key:"rank",label:"Rank",type:"select",options:["Officer","Sergeant","Lieutenant","Captain","Deputy Chief","Chief"],group:"employment"},
+  {key:"mou",label:"MOU",type:"select",options:["MOU 30","MOU 39"],group:"employment"},
+  {key:"sua",label:"Special Unit Assignment",type:"select",options:["None","K-9","Motors","Investigations","Training","EOD","SWAT","Bike Patrol","Other"],group:"employment"},
+  {key:"watch",label:"Watch",type:"select",options:["Watch 1","Watch 2","Watch 3","Admin"],group:"employment"},
+  {key:"terminal",label:"Terminal",type:"select",options:["Tom Bradley","Terminal 1","Terminal 2","Terminal 3","Terminal 4","Terminal 5","Terminal 6","Terminal 7","Terminal 8","CTA","LAX-it","Admin"],group:"employment"},
+  {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary"],group:"membership"},
+  {key:"memberSince",label:"Member Since",type:"date",group:"membership"},
+  {key:"notes",label:"Notes",type:"textarea",group:"membership"},
+];
+
+const GROUPS_LABEL = {personal:"Personal Information",employment:"Employment Details",membership:"LAAPOA Membership"};
+const MERGE_FIELDS = [{tag:"{{name}}",label:"Full Name",key:"name"},{tag:"{{rank}}",label:"Rank",key:"rank"}];
+
+// SVG icon helper
+function icon(d,w=18,h=18,sw=2){return <svg width={w} height={h} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{__html:d}}/>;}
+const IC = {
+  users: icon('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',20,20),
+  mail: icon('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'),
+  plus: icon('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
+  search: icon('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+  filter: icon('<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',16,16),
+  x: icon('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  xsm: icon('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',10,10,3),
+  edit: icon('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',16,16),
+  trash: icon('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',16,16),
+  check: icon('<polyline points="20 6 9 17 4 12"/>',16,16),
+  send: icon('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',16,16),
+  settings: icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+  group: icon('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>'),
+  eye: icon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',16,16),
+  tag: icon('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',14,14),
+};
+
+// API
+async function api(url,action,payload={}){if(!url)return{error:'No API URL configured'};try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,...payload})});return await r.json();}catch(e){return{error:e.message};}}
+async function apiGet(url,action,token){if(!url)return{error:'No API URL configured'};try{const r=await fetch(`${url}?action=${action}&token=${encodeURIComponent(token)}`);return await r.json();}catch(e){return{error:e.message};}}
+
+const DEMO_MEMBERS=[
+  {id:"1",name:"John Martinez",dob:"1985-03-15",address:"123 Aviation Blvd",city:"El Segundo",state:"CA",zip:"90245",phone:"(310) 555-0101",email:"jmartinez@email.com",serialNumber:"12345",cid:"CID00101",hireDate:"2010-06-01",retirement:"LAFPP",department:"APD",rank:"Officer",mou:"MOU 30",sua:"K-9",watch:"Watch 1",terminal:"Tom Bradley",memberStatus:"Active",memberSince:"2010-07-01",notes:""},
+  {id:"2",name:"Sarah Chen",dob:"1990-08-22",address:"456 Sepulveda Blvd",city:"Manhattan Beach",state:"CA",zip:"90266",phone:"(310) 555-0102",email:"schen@email.com",serialNumber:"12890",cid:"CID00202",hireDate:"2015-01-15",retirement:"LACERS",department:"APD",rank:"Officer",mou:"MOU 30",sua:"Motors",watch:"Watch 2",terminal:"Terminal 4",memberStatus:"Active",memberSince:"2015-02-01",notes:""},
+  {id:"3",name:"Robert Williams",dob:"1978-11-03",address:"789 Rosecrans Ave",city:"Hawthorne",state:"CA",zip:"90250",phone:"(310) 555-0103",email:"rwilliams@email.com",serialNumber:"10234",cid:"CID00303",hireDate:"2005-09-20",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",sua:"None",watch:"Watch 3",terminal:"Terminal 1",memberStatus:"Active",memberSince:"2005-10-01",notes:"Union steward"},
+  {id:"4",name:"Maria Lopez",dob:"1992-05-10",address:"321 Imperial Hwy",city:"Inglewood",state:"CA",zip:"90301",phone:"(310) 555-0104",email:"mlopez@email.com",serialNumber:"14567",cid:"CID00404",hireDate:"2018-03-12",retirement:"LACERS",department:"APD",rank:"Officer",mou:"MOU 30",sua:"Investigations",watch:"Admin",terminal:"Admin",memberStatus:"Active",memberSince:"2018-04-01",notes:""},
+  {id:"5",name:"David Park",dob:"1988-01-28",address:"654 Crenshaw Blvd",city:"Torrance",state:"CA",zip:"90501",phone:"(310) 555-0105",email:"dpark@email.com",serialNumber:"11678",cid:"CID00505",hireDate:"2012-07-08",retirement:"LAFPP",department:"APD",rank:"Lieutenant",mou:"MOU 39",sua:"Training",watch:"Watch 1",terminal:"CTA",memberStatus:"Active",memberSince:"2012-08-01",notes:""},
+  {id:"6",name:"Angela Foster",dob:"1983-12-19",address:"987 Pacific Coast Hwy",city:"Redondo Beach",state:"CA",zip:"90277",phone:"(310) 555-0106",email:"afoster@email.com",serialNumber:"11234",cid:"CID00606",hireDate:"2008-04-30",retirement:"LAFPP",department:"APD",rank:"Officer",mou:"MOU 30",sua:"SWAT",watch:"Watch 2",terminal:"Terminal 7",memberStatus:"Active",memberSince:"2008-05-15",notes:""},
+  {id:"7",name:"Thomas Reed",dob:"1970-07-04",address:"147 Main St",city:"Lawndale",state:"CA",zip:"90260",phone:"(310) 555-0107",email:"treed@email.com",serialNumber:"08901",cid:"CID00707",hireDate:"1998-01-05",retirement:"LAFPP",department:"APD",rank:"Captain",mou:"MOU 39",sua:"None",watch:"Admin",terminal:"Admin",memberStatus:"Retired",memberSince:"1998-02-01",notes:"Retired 2025"},
+];
+const DEMO_SAVED_GROUPS=[{id:"g1",name:"All Active Members",filters:{memberStatus:["Active"]},color:"#27AE60"},{id:"g2",name:"MOU 39 — Sgts & Lts",filters:{mou:["MOU 39"]},color:"#C6973F"},{id:"g3",name:"Watch 3 Crew",filters:{watch:["Watch 3"]},color:"#3498DB"}];
+
+function Toast({msg}){return msg?<div className="toast">{msg}</div>:null;}
+
+function LoginScreen({onLogin,onDemo}){
+  const[username,setUsername]=useState("");const[password,setPassword]=useState("");const[error,setError]=useState("");const[loading,setLoading]=useState(false);const[apiUrl,setApiUrl]=useState(API_URL);const[showUrl,setShowUrl]=useState(!API_URL);
+  const handleLogin=async()=>{if(!username||!password){setError("Enter username and password");return;}if(!apiUrl){setError("Enter your Apps Script URL first");setShowUrl(true);return;}setLoading(true);setError("");const res=await api(apiUrl,'login',{username,password});setLoading(false);if(res.error){setError(res.error==='Invalid credentials'?'Wrong username or password':res.error);return;}try{localStorage.setItem('laapoa_api_url',apiUrl);}catch(e){}onLogin(res.token,res.user,apiUrl);};
+  return(<div className="login-wrap"><div className="login-box"><div className="lb-badge">LA</div><h1>LAAPOA</h1><div className="lb-sub">Member Management System</div>{showUrl&&<div className="lf"><label>Apps Script Backend URL</label><input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec"/></div>}{error&&<div className="lerr">{error}</div>}<div className="lf"><label>Username</label><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="Username" autoFocus onKeyDown={e=>e.key==="Enter"&&handleLogin()}/></div><div className="lf"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" onKeyDown={e=>e.key==="Enter"&&handleLogin()}/></div><button className="lbtn" onClick={handleLogin} disabled={loading}>{loading?"Signing in...":"Sign In"}</button>{!showUrl&&<div style={{textAlign:"center",marginTop:8}}><button onClick={()=>setShowUrl(true)} style={{background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Change backend URL</button></div>}<div className="ldemo">Or <button onClick={onDemo}>enter demo mode</button> without a backend</div></div></div>);
+}
+
+function FI({field,value,onChange}){
+  if(field.type==="select")return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>{field.options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
+  if(field.type==="textarea")return<div className="fd"><label>{field.label}</label><textarea value={value||""} onChange={e=>onChange(field.key,e.target.value)}/></div>;
+  return<div className="fd"><label>{field.label}</label><input type={field.type} value={value||""} onChange={e=>onChange(field.key,e.target.value)} placeholder={field.label}/></div>;
+}
+
+function MemberForm({member,onSave,onClose,title}){
+  const[data,setData]=useState(member||FIELDS.reduce((a,f)=>({...a,[f.key]:f.default||""}),{}));const set=(k,v)=>setData(d=>({...d,[k]:v}));const grouped={};FIELDS.forEach(f=>{if(!grouped[f.group])grouped[f.group]=[];grouped[f.group].push({...f});});
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{title}</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{Object.entries(grouped).map(([g,fields])=>{const paired=new Set();return<div key={g}><div className="fgt">{GROUPS_LABEL[g]}</div>{fields.map((f,i)=>{if(paired.has(f.key))return null;const next=fields[i+1];if(f.type==="textarea"||f.key==="address")return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set}/></div>;if(next&&next.type!=="textarea"&&next.key!=="address"){paired.add(next.key);return<div className="fr" key={f.key}><FI field={f} value={data[f.key]} onChange={set}/><FI field={next} value={data[next.key]} onChange={set}/></div>;}return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set}/></div>;})}</div>;})}</div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={()=>onSave(data)}>{IC.check} Save Member</button></div></div></div>);
+}
+
+function resolveGroup(g,members){return members.filter(m=>{for(const[k,vs]of Object.entries(g.filters)){if(vs.length>0&&!vs.includes(m[k]))return false;}return true;});}
+
+function EmailComposer({members,groups,selectedIds,onClose,onSend,user}){
+  const[mode,setMode]=useState("groups");const[sendAll,setSendAll]=useState(false);const[activeGroups,setActiveGroups]=useState(new Set());const[subject,setSubject]=useState("");const[body,setBody]=useState("");const bodyRef=useRef(null);
+  const toggleGroup=(gid)=>{setSendAll(false);setActiveGroups(s=>{const n=new Set(s);n.has(gid)?n.delete(gid):n.add(gid);return n;});};
+  const recipients=useMemo(()=>{if(sendAll)return members;if(mode==="groups"){const ids=new Set();groups.forEach(g=>{if(activeGroups.has(g.id))resolveGroup(g,members).forEach(m=>ids.add(m.id));});return members.filter(m=>ids.has(m.id));}return members.filter(m=>selectedIds.has(m.id));},[sendAll,mode,activeGroups,members,groups,selectedIds]);
+  const insertMerge=(tag)=>{const ta=bodyRef.current;if(!ta){setBody(b=>b+tag);return;}const s=ta.selectionStart,en=ta.selectionEnd;setBody(body.slice(0,s)+tag+body.slice(en));setTimeout(()=>{ta.focus();ta.selectionStart=ta.selectionEnd=s+tag.length;},0);};
+  const pm=recipients[0]||{name:"John Doe",rank:"Officer"};const pvBody=body.replace(/\{\{name\}\}/g,pm.name).replace(/\{\{rank\}\}/g,pm.rank);const pvSubj=subject.replace(/\{\{name\}\}/g,pm.name).replace(/\{\{rank\}\}/g,pm.rank);
+  return(<div className="overlay" onClick={onClose}><div className="panel ep" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{IC.mail} Compose Email</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">
+    <div className="efrom">From: <strong>{user?.email||"your GSuite account"}</strong></div>
+    <div className={`sat ${sendAll?"on":""}`} onClick={()=>{setSendAll(!sendAll);setActiveGroups(new Set());}}><div className={`chk ${sendAll?"on":""}`}>{sendAll&&IC.check}</div><div><div className="sl">Send to All Members</div><div className="ss">{members.length} total members</div></div></div>
+    {!sendAll&&<><div className="tabs"><div className={`tab ${mode==="groups"?"on":""}`} onClick={()=>setMode("groups")}>{IC.group} Send to Groups</div><div className={`tab ${mode==="manual"?"on":""}`} onClick={()=>setMode("manual")}>{IC.users} Manual Selection ({selectedIds.size})</div></div>
+    {mode==="groups"&&<div className="gcards">{groups.map(g=>{const cnt=resolveGroup(g,members).length;return<div key={g.id} className={`gcard ${activeGroups.has(g.id)?"sel":""}`} onClick={()=>toggleGroup(g.id)}><div className="gck"><div className={`chk ${activeGroups.has(g.id)?"on":""}`} style={{width:16,height:16}}>{activeGroups.has(g.id)&&IC.check}</div></div><div className="gn"><span className="dot" style={{background:g.color,width:8,height:8,borderRadius:"50%",display:"inline-block"}}/>{g.name}</div><div className="gc">{cnt} member{cnt!==1?"s":""}</div></div>;})}{groups.length===0&&<div style={{gridColumn:"1/-1",color:"var(--text-muted)",fontSize:13,padding:12}}>No groups yet.</div>}</div>}
+    {mode==="manual"&&selectedIds.size===0&&<div style={{color:"var(--text-muted)",fontSize:13,padding:"8px 0",marginBottom:12}}>Select members from the table first.</div>}</>}
+    <div className="rsum"><div className="rc">{recipients.length}</div><div className="rd">recipient{recipients.length!==1?"s":""} will receive this email</div>{recipients.length>0&&recipients.length<=50&&<div className="rtags">{recipients.map(r=><span key={r.id} className="rtag">{r.name}</span>)}</div>}</div>
+    <div className="ef"><label>Subject <span style={{color:"var(--text-muted)",fontWeight:400}}>— merge fields work here too</span></label><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Email subject line..."/></div>
+    <div className="mbar"><span className="ml">{IC.tag} Insert merge field:</span>{MERGE_FIELDS.map(mf=><button key={mf.tag} className="mbtn" onClick={()=>insertMerge(mf.tag)}>{mf.tag}</button>)}</div>
+    <div className="ef"><label>Message Body</label><textarea ref={bodyRef} value={body} onChange={e=>setBody(e.target.value)} placeholder={"Dear {{name}},\n\nAs a valued {{rank}} in our organization..."}/></div>
+    {body&&<div className="pvbox"><div className="pvl">{IC.eye} Live Preview — as <strong style={{color:"var(--text)"}}>{pm.name}</strong> would see it</div><div><strong>Subject:</strong> {pvSubj||<em style={{color:"var(--text-muted)"}}>No subject</em>}</div><div style={{marginTop:8,whiteSpace:"pre-wrap"}}>{pvBody}</div></div>}
+  </div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" disabled={!subject||!body||recipients.length===0} onClick={()=>onSend({subject,body,recipients})}>{IC.send} Send to {recipients.length} Recipient{recipients.length!==1?"s":""}</button></div></div></div>);
+}
+
+function FilterPanel({filters,setFilters,onClose}){
+  const ff=FIELDS.filter(f=>f.type==="select");const toggle=(k,v)=>setFilters(p=>{const c=p[k]||[];return{...p,[k]:c.includes(v)?c.filter(x=>x!==v):[...c,v]};});
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{IC.filter} Filter Members</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{ff.map(f=><div key={f.key} style={{marginBottom:18}}><div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>{f.label}</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{f.options.map(o=>{const on=(filters[f.key]||[]).includes(o);return<button key={o} onClick={()=>toggle(f.key,o)} style={{padding:"6px 12px",borderRadius:20,fontSize:12,fontWeight:500,cursor:"pointer",border:`1px solid ${on?"var(--gold)":"var(--border)"}`,background:on?"var(--gold-dim)":"var(--navy)",color:on?"var(--gold)":"var(--text-dim)",transition:"all .15s",fontFamily:"inherit"}}>{o}</button>;})}</div></div>)}</div><div className="pf"><button className="btn btn-red" onClick={()=>setFilters({})}>Clear All</button><button className="btn btn-gold" onClick={onClose}>Apply Filters</button></div></div></div>);
+}
+
+function GroupManager({groups,setGroups,members,filters,onClose}){
+  const[nn,setNn]=useState("");const colors=["#C6973F","#27AE60","#3498DB","#C0392B","#9B59B6","#E67E22","#1ABC9C"];const afc=Object.values(filters).filter(v=>v.length>0).length;
+  const save=()=>{if(!nn.trim())return;setGroups(gs=>[...gs,{id:"g"+Date.now(),name:nn,filters:{...filters},color:colors[gs.length%colors.length]}]);setNn("");};
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{IC.group} Manage Groups</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">
+    <div style={{marginBottom:20}}><div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>Saved Groups</div>
+    {groups.length===0&&<div style={{color:"var(--text-muted)",fontSize:13}}>No groups yet.</div>}
+    {groups.map(g=>{const cnt=resolveGroup(g,members).length;const desc=Object.entries(g.filters).filter(([,v])=>v.length).map(([k,v])=>`${(FIELDS.find(f=>f.key===k)||{}).label||k}: ${v.join(", ")}`).join(" · ");return<div key={g.id} style={{background:"var(--navy)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"12px 14px",marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{background:g.color,width:8,height:8,borderRadius:"50%",display:"inline-block"}}/><span style={{fontWeight:600,fontSize:14}}>{g.name}</span><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:"var(--gold-light)"}}>{cnt}</span></div><button className="btn btn-sm btn-red" onClick={()=>setGroups(gs=>gs.filter(x=>x.id!==g.id))}>{IC.trash}</button></div>{desc&&<div style={{fontSize:11,color:"var(--text-dim)",marginTop:4}}>{desc}</div>}</div>;})}</div>
+    <div style={{borderTop:"1px solid var(--border)",paddingTop:16}}><div style={{fontSize:12,fontWeight:600,color:"var(--text-dim)",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>Create Group from Current Filters</div>{afc>0?<><div style={{fontSize:12,color:"var(--text-dim)",marginBottom:8}}>Filters: {Object.entries(filters).filter(([,v])=>v.length).map(([k,v])=>`${(FIELDS.find(f=>f.key===k)||{}).label||k}: ${v.join(", ")}`).join(" · ")}</div><div className="gcr"><input value={nn} onChange={e=>setNn(e.target.value)} placeholder="Group name..." onKeyDown={e=>e.key==="Enter"&&save()}/><button className="btn btn-gold btn-sm" onClick={save}>{IC.plus} Save</button></div></>:<div style={{color:"var(--text-muted)",fontSize:13}}>Set filters on the members table first, then come here to save them as a reusable group.</div>}</div>
+  </div><div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div></div></div>);
+}
+
+function ConfigPanel({onClose,scriptUrl,setScriptUrl}){
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{IC.settings} Backend Configuration</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">
+    <div className="cinfo"><p><strong>Google Apps Script Backend</strong></p><p>Connect this app to your Google Sheet by deploying the Apps Script. Paste the deployed web app URL below.</p><p>Currently: {scriptUrl?<code>{scriptUrl.slice(0,50)}...</code>:<em>Demo mode (local data)</em>}</p></div>
+    <div className="ef"><label>Apps Script Web App URL</label><input value={scriptUrl} onChange={e=>setScriptUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec"/></div>
+  </div><div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div></div></div>);
+}
+
+function App(){
+  const[authToken,setAuthToken]=useState(null);const[user,setUser]=useState(null);const[backendUrl,setBackendUrl]=useState(API_URL);const[demoMode,setDemoMode]=useState(false);
+  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);
+  const flash=m=>{setToast(m);setTimeout(()=>setToast(""),2500);};
+  const handleLogin=(token,userData,url)=>{setAuthToken(token);setUser(userData);setBackendUrl(url);setDemoMode(false);loadData(url,token);};
+  const handleDemo=()=>{setDemoMode(true);setUser({username:"demo",displayName:"Demo User",email:"demo@laapoa.com",role:"admin"});setMembers(DEMO_MEMBERS);setGroups(DEMO_SAVED_GROUPS);};
+  const handleLogout=()=>{setAuthToken(null);setUser(null);setDemoMode(false);setMembers([]);setGroups([]);setSelected(new Set());};
+  const loadData=async(url,token)=>{setLoading(true);const[mRes,gRes]=await Promise.all([apiGet(url,'getMembers',token),apiGet(url,'getGroups',token)]);if(mRes.ok)setMembers(mRes.members);else flash("Failed to load members: "+(mRes.error||"unknown"));if(gRes.ok)setGroups(gRes.groups);setLoading(false);};
+
+  if(!user)return<LoginScreen onLogin={handleLogin} onDemo={handleDemo}/>;
+
+  const afc=Object.values(filters).filter(v=>v.length>0).length;
+  const filtered=members.filter(m=>{if(search){const s=search.toLowerCase();if(!Object.values(m).some(v=>String(v).toLowerCase().includes(s)))return false;}for(const[k,vs]of Object.entries(filters)){if(vs.length>0&&!vs.includes(m[k]))return false;}return true;});
+  const sorted=[...filtered].sort((a,b)=>{const va=(a[sortCol]||"").toString().toLowerCase(),vb=(b[sortCol]||"").toString().toLowerCase();return va<vb?-sortDir:va>vb?sortDir:0;});
+  const toggleSort=c=>{sortCol===c?setSortDir(d=>-d):(setSortCol(c),setSortDir(1));};
+  const toggleSelect=id=>setSelected(s=>{const n=new Set(s);n.has(id)?n.delete(id):n.add(id);return n;});
+  const selectAll=()=>{selected.size===sorted.length?setSelected(new Set()):setSelected(new Set(sorted.map(m=>m.id)));};
+
+  const handleSave=async(data)=>{if(demoMode){if(editMember){setMembers(ms=>ms.map(m=>m.id===editMember.id?{...data,id:m.id}:m));flash("Member updated");}else{setMembers(ms=>[...ms,{...data,id:Date.now().toString()}]);flash("Member added");}}else{const res=await api(backendUrl,'saveMember',{token:authToken,member:editMember?{...data,id:editMember.id}:data});if(res.ok){flash("Member "+res.action);loadData(backendUrl,authToken);}else flash("Error: "+(res.error||"save failed"));}setPanel(null);setEditMember(null);};
+  const handleDelete=async(id)=>{if(demoMode){setMembers(ms=>ms.filter(m=>m.id!==id));}else{const res=await api(backendUrl,'deleteMember',{token:authToken,id});if(res.ok)loadData(backendUrl,authToken);else{flash("Error: "+(res.error||"delete failed"));return;}}setSelected(s=>{const n=new Set(s);n.delete(id);return n;});flash("Member removed");};
+  const handleSendEmail=async({subject,body,recipients})=>{if(demoMode){flash(`[Demo] Email queued to ${recipients.length} recipient(s)`);setPanel(null);return;}setLoading(true);const res=await api(backendUrl,'sendEmail',{token:authToken,recipients:recipients.map(r=>({email:r.email,name:r.name,rank:r.rank})),subject,body});setLoading(false);if(res.ok){flash(`Sent ${res.sent}/${res.total} emails`+(res.errors?.length?` (${res.errors.length} failed)`:''));}else{flash("Error: "+(res.error||"send failed"));}setPanel(null);};
+  const handleSaveGroups=async(newGroups)=>{setGroups(newGroups);if(!demoMode){await api(backendUrl,'saveGroups',{token:authToken,groups:newGroups});}};
+
+  const stats={total:members.length,active:members.filter(m=>m.memberStatus==="Active").length,retired:members.filter(m=>m.memberStatus==="Retired").length};
+  const COLS=[{key:"name",label:"Name"},{key:"serialNumber",label:"Serial #"},{key:"cid",label:"CID"},{key:"rank",label:"Rank"},{key:"watch",label:"Watch"},{key:"sua",label:"SUA"},{key:"retirement",label:"Ret."},{key:"memberStatus",label:"Status"},{key:"email",label:"Email"}];
+  const activePills=Object.entries(filters).flatMap(([k,vs])=>vs.map(v=>({key:k,value:v,label:(FIELDS.find(f=>f.key===k)||{}).label||k})));
+
+  return(<div className="app">
+    <div className="sidebar">
+      <div className="sidebar-brand"><div className="badge">LA</div><div><h1>LAAPOA</h1><span>Member Management</span></div></div>
+      <div className="sidebar-nav">
+        <div className="nav-section">Main</div>
+        <button className="nav-item active">{IC.users} Members</button>
+        <button className="nav-item" onClick={()=>setPanel("email")}>{IC.mail} Compose Email</button>
+        <div className="nav-section">Groups</div>
+        {groups.map(g=><button key={g.id} className="nav-item" onClick={()=>{setFilters(g.filters);setPanel(null);}}><span className="dot" style={{background:g.color}}/>{g.name}<span className="cnt">{resolveGroup(g,members).length}</span></button>)}
+        <button className="nav-item" onClick={()=>setPanel("groups")}>{IC.plus} Manage Groups</button>
+        {!demoMode&&<><div className="nav-section">System</div><button className="nav-item" onClick={()=>setPanel("config")}>{IC.settings} Configuration</button></>}
+      </div>
+      <div className="sidebar-stats"><div className="stat-row"><span className="lb">Total</span><span className="vl">{stats.total}</span></div><div className="stat-row"><span className="lb">Active</span><span className="vl">{stats.active}</span></div><div className="stat-row"><span className="lb">Retired</span><span className="vl">{stats.retired}</span></div></div>
+      <div className="user-bar"><span className="uname">{user.displayName}</span>{demoMode&&<span style={{fontSize:10,background:"var(--gold-dim)",padding:"2px 6px",borderRadius:8,color:"var(--gold)"}}>DEMO</span>}<button className="logout" onClick={handleLogout}>Sign out</button></div>
+    </div>
+    <div className="main">
+      <div className="toolbar">
+        <div className="search-box">{IC.search}<input placeholder="Search members..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        <button className="btn" onClick={()=>setPanel("filter")}>{IC.filter} Filters {afc>0&&<span style={{color:"var(--gold)"}}>({afc})</span>}</button>
+        {activePills.length>0&&<div className="pills">{activePills.map(p=><span className="pill" key={p.key+p.value}>{p.label}: {p.value}<button onClick={()=>setFilters(f=>({...f,[p.key]:(f[p.key]||[]).filter(v=>v!==p.value)}))}>{IC.xsm}</button></span>)}<button className="btn btn-sm" onClick={()=>setFilters({})}>Clear</button></div>}
+        <div style={{flex:1}}/>
+        {selected.size>0&&<button className="btn btn-outline-gold" onClick={()=>setPanel("email")}>{IC.mail} Email {selected.size} Selected</button>}
+        <button className="btn btn-gold" onClick={()=>{setEditMember(null);setPanel("add");}}>{IC.plus} Add Member</button>
+      </div>
+      {selected.size>0&&<div className="sbar"><span className="sc">{selected.size}</span> member{selected.size!==1?"s":""} selected<button className="btn btn-sm" onClick={()=>setSelected(new Set())} style={{marginLeft:8}}>Clear</button><button className="btn btn-sm" onClick={selectAll}>Select All Visible ({sorted.length})</button></div>}
+      <div className="table-wrap">
+        {loading?<div className="empty"><p>Loading...</p></div>:
+        sorted.length===0?<div className="empty">{IC.users}<p>No members match your criteria</p><button className="btn" onClick={()=>{setSearch("");setFilters({});}}>Clear Filters</button></div>:
+        <table><thead><tr>
+          <th style={{width:40}}><div className={`chk ${selected.size===sorted.length&&sorted.length>0?"on":""}`} onClick={selectAll}>{selected.size===sorted.length&&sorted.length>0&&IC.check}</div></th>
+          {COLS.map(c=><th key={c.key} onClick={()=>toggleSort(c.key)}>{c.label} {sortCol===c.key&&(sortDir===1?"↑":"↓")}</th>)}
+          <th style={{width:80}}>Actions</th>
+        </tr></thead><tbody>
+          {sorted.map(m=><tr key={m.id}>
+            <td><div className={`chk ${selected.has(m.id)?"on":""}`} onClick={()=>toggleSelect(m.id)}>{selected.has(m.id)&&IC.check}</div></td>
+            <td style={{fontWeight:600}}>{m.name}</td>
+            <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.serialNumber}</span></td>
+            <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.cid}</span></td>
+            <td>{m.rank}</td><td>{m.watch}</td>
+            <td>{m.sua!=="None"?m.sua:<span style={{color:"var(--text-muted)"}}>—</span>}</td>
+            <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.retirement}</span></td>
+            <td><span className={`badge-s s-${m.memberStatus}`}>{m.memberStatus}</span></td>
+            <td style={{fontSize:12,color:"var(--text-dim)"}}>{m.email}</td>
+            <td><div className="racts"><button onClick={()=>{setEditMember(m);setPanel("edit");}}>{IC.edit}</button><button className="del" onClick={()=>handleDelete(m.id)}>{IC.trash}</button></div></td>
+          </tr>)}
+        </tbody></table>}
+      </div>
+    </div>
+    {(panel==="add"||panel==="edit")&&<MemberForm member={panel==="edit"?editMember:null} title={panel==="edit"?"Edit Member":"Add New Member"} onSave={handleSave} onClose={()=>{setPanel(null);setEditMember(null);}}/>}
+    {panel==="email"&&<EmailComposer members={members} groups={groups} selectedIds={selected} onClose={()=>setPanel(null)} onSend={handleSendEmail} user={user}/>}
+    {panel==="filter"&&<FilterPanel filters={filters} setFilters={setFilters} onClose={()=>setPanel(null)}/>}
+    {panel==="groups"&&<GroupManager groups={groups} setGroups={g=>handleSaveGroups(g)} members={members} filters={filters} onClose={()=>setPanel(null)}/>}
+    {panel==="config"&&<ConfigPanel scriptUrl={backendUrl} setScriptUrl={setBackendUrl} onClose={()=>setPanel(null)}/>}
+    <Toast msg={toast}/>
+  </div>);
+}
+
+ReactDOM.render(<App/>,document.getElementById('root'));
+</script>
+</body>
+</html>
