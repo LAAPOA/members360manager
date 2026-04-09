@@ -59,6 +59,24 @@ tr:hover td{background:var(--surface-raised)}
 .s-Retired{background:var(--gold-dim);color:var(--gold)}
 .s-Inactive{background:rgba(255,255,255,.06);color:var(--text-dim)}
 .s-Probationary{background:var(--blue-dim);color:var(--blue)}
+.s-Terminated{background:var(--red-dim);color:var(--red)}
+.s-Lateral{background:rgba(155,89,182,.12);color:#9B59B6}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center;animation:fi .15s ease}
+.confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px 24px;width:380px;max-width:90vw;box-shadow:var(--shadow)}
+.confirm-box h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--red)}
+.confirm-box p{font-size:14px;color:var(--text-dim);margin-bottom:6px;line-height:1.5}
+.confirm-box .cname{color:var(--text);font-weight:600}
+.confirm-box .cactions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.import-drop{border:2px dashed var(--border-bright);border-radius:var(--radius);padding:40px 20px;text-align:center;color:var(--text-dim);cursor:pointer;transition:all .15s;margin-bottom:16px}
+.import-drop:hover,.import-drop.drag{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
+.import-drop input{display:none}
+.import-preview{max-height:300px;overflow-y:auto;margin-bottom:16px}
+.import-preview table{font-size:12px}
+.import-preview td,.import-preview th{padding:6px 10px}
+.import-stat{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.import-stat .is{background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;flex:1;min-width:100px}
+.import-stat .is .isn{font-size:20px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace}
+.import-stat .is .isl{font-size:11px;color:var(--text-dim);margin-top:2px}
 .racts{display:flex;gap:4px}
 .racts button{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;border-radius:4px;display:flex}
 .racts button:hover{color:var(--gold);background:var(--gold-dim)}
@@ -176,18 +194,39 @@ const FIELDS = [
   {key:"hireDate",label:"Hire Date",type:"date",group:"employment"},
   {key:"retirement",label:"Retirement System",type:"select",options:["LAFPP","LACERS"],group:"employment"},
   {key:"department",label:"Department",type:"select",options:["APD","LAWA Admin","Maintenance","Other"],group:"employment"},
-  {key:"rank",label:"Rank",type:"select",options:["Officer","Sergeant","Lieutenant","Captain","Deputy Chief","Chief"],group:"employment"},
-  {key:"mou",label:"MOU",type:"select",options:["MOU 30","MOU 39"],group:"employment"},
-  {key:"sua",label:"Special Unit Assignment",type:"select",options:["None","K-9","Motors","Investigations","Training","EOD","SWAT","Bike Patrol","Other"],group:"employment"},
-  {key:"watch",label:"Watch",type:"select",options:["Watch 1","Watch 2","Watch 3","Admin"],group:"employment"},
-  {key:"terminal",label:"Terminal",type:"select",options:["Tom Bradley","Terminal 1","Terminal 2","Terminal 3","Terminal 4","Terminal 5","Terminal 6","Terminal 7","Terminal 8","CTA","LAX-it","Admin"],group:"employment"},
-  {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary"],group:"membership"},
+  {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
+  {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
+  {key:"assignment",label:"Assignment",type:"select",options:["PSS","Watch 1","Watch 2","Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","","My unit not listed"],group:"employment"},
+  {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
+  {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
+  {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"memberSince",label:"Member Since",type:"date",group:"membership"},
   {key:"notes",label:"Notes",type:"textarea",group:"membership"},
 ];
 
 const GROUPS_LABEL = {personal:"Personal Information",employment:"Employment Details",membership:"LAAPOA Membership"};
 const MERGE_FIELDS = [{tag:"{{name}}",label:"Full Name",key:"name"},{tag:"{{rank}}",label:"Rank",key:"rank"}];
+
+const RANK_MOU_MAP = {
+  "Specialist (MOU 30)": {rank:"Specialist",mou:"MOU 30"},
+  "Officer PI (MOU 30)": {rank:"Officer PI",mou:"MOU 30"},
+  "Officer PII (MOU 30)": {rank:"Officer PII",mou:"MOU 30"},
+  "Officer PIII (MOU 30)": {rank:"Officer PIII",mou:"MOU 30"},
+  "Officer PII (MOU 28)": {rank:"Officer PII",mou:"MOU 28"},
+  "Officer PIII (MOU 28)": {rank:"Officer PIII",mou:"MOU 28"},
+  "Sergeant (MOU 39)": {rank:"Sergeant",mou:"MOU 39"},
+  "Sergeant (MOU 28)": {rank:"Sergeant",mou:"MOU 28"},
+  "Lieutenant (MOU 39)": {rank:"Lieutenant",mou:"MOU 39"},
+  "Park Ranger (MOU 65)": {rank:"Park Ranger",mou:"MOU 65"},
+  "Park Ranger Supervisor (MOU 65)": {rank:"Park Ranger Supervisor",mou:"MOU 65"},
+  "Commanding Park Ranger (MOU 65)": {rank:"Commanding Park Ranger",mou:"MOU 65"},
+};
+
+// Reverse lookup: find the dropdown label from stored rank + mou
+function rankToLabel(rank,mou){
+  for(const[label,v]of Object.entries(RANK_MOU_MAP)){if(v.rank===rank&&v.mou===mou)return label;}
+  return rank||'';
+}
 
 // SVG icon helper
 function icon(d,w=18,h=18,sw=2){return <svg width={w} height={h} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{__html:d}}/>;}
@@ -207,6 +246,7 @@ const IC = {
   group: icon('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>'),
   eye: icon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',16,16),
   tag: icon('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',14,14),
+  upload: icon('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
 };
 
 // API
@@ -214,13 +254,13 @@ async function api(url,action,payload={}){if(!url)return{error:'No API URL confi
 async function apiGet(url,action,token){if(!url)return{error:'No API URL configured'};try{const r=await fetch(`${url}?action=${action}&token=${encodeURIComponent(token)}`);return await r.json();}catch(e){return{error:e.message};}}
 
 const DEMO_MEMBERS=[
-  {id:"1",name:"John Martinez",dob:"1985-03-15",address:"123 Aviation Blvd",city:"El Segundo",state:"CA",zip:"90245",phone:"(310) 555-0101",email:"jmartinez@email.com",serialNumber:"12345",cid:"CID00101",hireDate:"2010-06-01",retirement:"LAFPP",department:"APD",rank:"Officer",mou:"MOU 30",sua:"K-9",watch:"Watch 1",terminal:"Tom Bradley",memberStatus:"Active",memberSince:"2010-07-01",notes:""},
-  {id:"2",name:"Sarah Chen",dob:"1990-08-22",address:"456 Sepulveda Blvd",city:"Manhattan Beach",state:"CA",zip:"90266",phone:"(310) 555-0102",email:"schen@email.com",serialNumber:"12890",cid:"CID00202",hireDate:"2015-01-15",retirement:"LACERS",department:"APD",rank:"Officer",mou:"MOU 30",sua:"Motors",watch:"Watch 2",terminal:"Terminal 4",memberStatus:"Active",memberSince:"2015-02-01",notes:""},
-  {id:"3",name:"Robert Williams",dob:"1978-11-03",address:"789 Rosecrans Ave",city:"Hawthorne",state:"CA",zip:"90250",phone:"(310) 555-0103",email:"rwilliams@email.com",serialNumber:"10234",cid:"CID00303",hireDate:"2005-09-20",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",sua:"None",watch:"Watch 3",terminal:"Terminal 1",memberStatus:"Active",memberSince:"2005-10-01",notes:"Union steward"},
-  {id:"4",name:"Maria Lopez",dob:"1992-05-10",address:"321 Imperial Hwy",city:"Inglewood",state:"CA",zip:"90301",phone:"(310) 555-0104",email:"mlopez@email.com",serialNumber:"14567",cid:"CID00404",hireDate:"2018-03-12",retirement:"LACERS",department:"APD",rank:"Officer",mou:"MOU 30",sua:"Investigations",watch:"Admin",terminal:"Admin",memberStatus:"Active",memberSince:"2018-04-01",notes:""},
-  {id:"5",name:"David Park",dob:"1988-01-28",address:"654 Crenshaw Blvd",city:"Torrance",state:"CA",zip:"90501",phone:"(310) 555-0105",email:"dpark@email.com",serialNumber:"11678",cid:"CID00505",hireDate:"2012-07-08",retirement:"LAFPP",department:"APD",rank:"Lieutenant",mou:"MOU 39",sua:"Training",watch:"Watch 1",terminal:"CTA",memberStatus:"Active",memberSince:"2012-08-01",notes:""},
-  {id:"6",name:"Angela Foster",dob:"1983-12-19",address:"987 Pacific Coast Hwy",city:"Redondo Beach",state:"CA",zip:"90277",phone:"(310) 555-0106",email:"afoster@email.com",serialNumber:"11234",cid:"CID00606",hireDate:"2008-04-30",retirement:"LAFPP",department:"APD",rank:"Officer",mou:"MOU 30",sua:"SWAT",watch:"Watch 2",terminal:"Terminal 7",memberStatus:"Active",memberSince:"2008-05-15",notes:""},
-  {id:"7",name:"Thomas Reed",dob:"1970-07-04",address:"147 Main St",city:"Lawndale",state:"CA",zip:"90260",phone:"(310) 555-0107",email:"treed@email.com",serialNumber:"08901",cid:"CID00707",hireDate:"1998-01-05",retirement:"LAFPP",department:"APD",rank:"Captain",mou:"MOU 39",sua:"None",watch:"Admin",terminal:"Admin",memberStatus:"Retired",memberSince:"1998-02-01",notes:"Retired 2025"},
+  {id:"1",name:"John Martinez",dob:"1985-03-15",address:"123 Aviation Blvd",city:"El Segundo",state:"CA",zip:"90245",phone:"(310) 555-0101",email:"jmartinez@email.com",serialNumber:"12345",cid:"CID00101",hireDate:"2010-06-01",retirement:"LAFPP",department:"APD",rank:"Officer PII",mou:"MOU 30",assignment:"K9s",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2010-07-01",notes:""},
+  {id:"2",name:"Sarah Chen",dob:"1990-08-22",address:"456 Sepulveda Blvd",city:"Manhattan Beach",state:"CA",zip:"90266",phone:"(310) 555-0102",email:"schen@email.com",serialNumber:"12890",cid:"CID00202",hireDate:"2015-01-15",retirement:"LACERS",department:"APD",rank:"Officer PII",mou:"MOU 30",assignment:"Motors",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2015-02-01",notes:""},
+  {id:"3",name:"Robert Williams",dob:"1978-11-03",address:"789 Rosecrans Ave",city:"Hawthorne",state:"CA",zip:"90250",phone:"(310) 555-0103",email:"rwilliams@email.com",serialNumber:"10234",cid:"CID00303",hireDate:"2005-09-20",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"Watch 3",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2005-10-01",notes:"Union steward"},
+  {id:"4",name:"Maria Lopez",dob:"1992-05-10",address:"321 Imperial Hwy",city:"Inglewood",state:"CA",zip:"90301",phone:"(310) 555-0104",email:"mlopez@email.com",serialNumber:"14567",cid:"CID00404",hireDate:"2018-03-12",retirement:"LACERS",department:"APD",rank:"Officer PIII",mou:"MOU 28",assignment:"APIC",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2018-04-01",notes:""},
+  {id:"5",name:"David Park",dob:"1988-01-28",address:"654 Crenshaw Blvd",city:"Torrance",state:"CA",zip:"90501",phone:"(310) 555-0105",email:"dpark@email.com",serialNumber:"11678",cid:"CID00505",hireDate:"2012-07-08",retirement:"LAFPP",department:"APD",rank:"Lieutenant",mou:"MOU 39",assignment:"Training",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2012-08-01",notes:""},
+  {id:"6",name:"Angela Foster",dob:"1983-12-19",address:"987 Pacific Coast Hwy",city:"Redondo Beach",state:"CA",zip:"90277",phone:"(310) 555-0106",email:"afoster@email.com",serialNumber:"11234",cid:"CID00606",hireDate:"2008-04-30",retirement:"LAFPP",department:"APD",rank:"Specialist",mou:"MOU 30",assignment:"Watch 2",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2008-05-15",notes:""},
+  {id:"7",name:"Thomas Reed",dob:"1970-07-04",address:"147 Main St",city:"Lawndale",state:"CA",zip:"90260",phone:"(310) 555-0107",email:"treed@email.com",serialNumber:"08901",cid:"CID00707",hireDate:"1998-01-05",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"",memberStatus:"Retired",lateralAgency:"",lateralDate:"",memberSince:"1998-02-01",notes:"Retired 2025"},
 ];
 const DEMO_SAVED_GROUPS=[{id:"g1",name:"All Active Members",filters:{memberStatus:["Active"]},color:"#27AE60"},{id:"g2",name:"MOU 39 — Sgts & Lts",filters:{mou:["MOU 39"]},color:"#C6973F"},{id:"g3",name:"Watch 3 Crew",filters:{watch:["Watch 3"]},color:"#3498DB"}];
 
@@ -232,15 +272,65 @@ function LoginScreen({onLogin,onDemo}){
   return(<div className="login-wrap"><div className="login-box"><div className="lb-badge">LA</div><h1>LAAPOA</h1><div className="lb-sub">Member Management System</div>{showUrl&&<div className="lf"><label>Apps Script Backend URL</label><input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec"/></div>}{error&&<div className="lerr">{error}</div>}<div className="lf"><label>Username</label><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="Username" autoFocus onKeyDown={e=>e.key==="Enter"&&handleLogin()}/></div><div className="lf"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" onKeyDown={e=>e.key==="Enter"&&handleLogin()}/></div><button className="lbtn" onClick={handleLogin} disabled={loading}>{loading?"Signing in...":"Sign In"}</button>{!showUrl&&<div style={{textAlign:"center",marginTop:8}}><button onClick={()=>setShowUrl(true)} style={{background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Change backend URL</button></div>}<div className="ldemo">Or <button onClick={onDemo}>enter demo mode</button> without a backend</div></div></div>);
 }
 
-function FI({field,value,onChange}){
-  if(field.type==="select")return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>{field.options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
+function FI({field,value,onChange,formData}){
+  if(field.type==="rank_select"){
+    const curLabel=rankToLabel(formData?.rank,formData?.mou);
+    const handleRankChange=(ev)=>{
+      const label=ev.target.value;
+      const mapped=RANK_MOU_MAP[label];
+      if(mapped){onChange('rank',mapped.rank);onChange('mou',mapped.mou);}
+      else{onChange('rank','');onChange('mou','');}
+    };
+    return<div className="fd"><label>{field.label}</label><select value={curLabel} onChange={handleRankChange}>
+      <option value="">— Select —</option>
+      <optgroup label="Officers — MOU 30">
+        <option>Specialist (MOU 30)</option><option>Officer PI (MOU 30)</option><option>Officer PII (MOU 30)</option><option>Officer PIII (MOU 30)</option>
+      </optgroup>
+      <optgroup label="Officers — MOU 28">
+        <option>Officer PII (MOU 28)</option><option>Officer PIII (MOU 28)</option>
+      </optgroup>
+      <optgroup label="Supervisors — MOU 39">
+        <option>Sergeant (MOU 39)</option><option>Lieutenant (MOU 39)</option>
+      </optgroup>
+      <optgroup label="Supervisor — MOU 28">
+        <option>Sergeant (MOU 28)</option>
+      </optgroup>
+      <optgroup label="Park Rangers — MOU 65">
+        <option>Park Ranger (MOU 65)</option><option>Park Ranger Supervisor (MOU 65)</option><option>Commanding Park Ranger (MOU 65)</option>
+      </optgroup>
+    </select></div>;
+  }
+  if(field.readonly){
+    return<div className="fd"><label>{field.label}</label><input type="text" value={value||""} readOnly style={{opacity:.7,cursor:"default"}}/></div>;
+  }
+  if(field.type==="select"){
+    if(field.key==="assignment"){
+      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>
+        <option value="PSS">PSS</option><option value="Watch 1">Watch 1</option><option value="Watch 2">Watch 2</option><option value="Watch 3">Watch 3</option>
+        <option disabled>──────────</option>
+        <option value="APIC">APIC</option><option value="Court Liaison">Court Liaison</option><option value="CTF">CTF</option><option value="Dignitary Protection">Dignitary Protection</option><option value="ESU">ESU</option><option value="K9s">K9s</option><option value="Motors">Motors</option><option value="Range">Range</option><option value="Special Projects">Special Projects</option><option value="Training">Training</option><option value="VAAU">VAAU</option>
+        <option disabled>──────────</option><option value="My unit not listed">My unit not listed</option>
+      </select></div>;
+    }
+    if(field.key==="specialUnit"){
+      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>
+        <option value="APIC">APIC</option><option value="Court Liaison">Court Liaison</option><option value="CTF">CTF</option><option value="Dignitary Protection">Dignitary Protection</option><option value="ESU">ESU</option><option value="K9s">K9s</option><option value="Motors">Motors</option><option value="Range">Range</option><option value="Special Projects">Special Projects</option><option value="Training">Training</option><option value="VAAU">VAAU</option>
+        <option disabled>──────────</option><option value="My unit not listed">My unit not listed</option>
+      </select></div>;
+    }
+    return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>{field.options.filter(o=>o!=='').map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
+  }
   if(field.type==="textarea")return<div className="fd"><label>{field.label}</label><textarea value={value||""} onChange={e=>onChange(field.key,e.target.value)}/></div>;
   return<div className="fd"><label>{field.label}</label><input type={field.type} value={value||""} onChange={e=>onChange(field.key,e.target.value)} placeholder={field.label}/></div>;
 }
 
 function MemberForm({member,onSave,onClose,title}){
-  const[data,setData]=useState(member||FIELDS.reduce((a,f)=>({...a,[f.key]:f.default||""}),{}));const set=(k,v)=>setData(d=>({...d,[k]:v}));const grouped={};FIELDS.forEach(f=>{if(!grouped[f.group])grouped[f.group]=[];grouped[f.group].push({...f});});
-  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{title}</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{Object.entries(grouped).map(([g,fields])=>{const paired=new Set();return<div key={g}><div className="fgt">{GROUPS_LABEL[g]}</div>{fields.map((f,i)=>{if(paired.has(f.key))return null;const next=fields[i+1];if(f.type==="textarea"||f.key==="address")return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set}/></div>;if(next&&next.type!=="textarea"&&next.key!=="address"){paired.add(next.key);return<div className="fr" key={f.key}><FI field={f} value={data[f.key]} onChange={set}/><FI field={next} value={data[next.key]} onChange={set}/></div>;}return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set}/></div>;})}</div>;})}</div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={()=>onSave(data)}>{IC.check} Save Member</button></div></div></div>);
+  const[data,setData]=useState(member||FIELDS.reduce((a,f)=>({...a,[f.key]:f.default||""}),{}));const set=(k,v)=>{setData(d=>{const nd={...d,[k]:v};
+    if(k==="memberStatus"&&v!=="Lateral"){nd.lateralAgency="";nd.lateralDate="";}
+    return nd;});};
+  const grouped={};FIELDS.forEach(f=>{if(!grouped[f.group])grouped[f.group]=[];grouped[f.group].push({...f});});
+  const shouldShow=(f)=>{if(!f.conditional)return true;return data[f.conditional]===f.conditionalValue;};
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{title}</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{Object.entries(grouped).map(([g,fields])=>{const paired=new Set();const visibleFields=fields.filter(f=>shouldShow(f));return<div key={g}><div className="fgt">{GROUPS_LABEL[g]}</div>{visibleFields.map((f,i)=>{if(paired.has(f.key))return null;const next=visibleFields[i+1];if(f.type==="textarea"||f.key==="address")return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data}/></div>;if(next&&!paired.has(next.key)&&next.type!=="textarea"&&next.key!=="address"){paired.add(next.key);return<div className="fr" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data}/><FI field={next} value={data[next.key]} onChange={set} formData={data}/></div>;}return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data}/></div>;})}</div>;})}</div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={()=>onSave(data)}>{IC.check} Save Member</button></div></div></div>);
 }
 
 function resolveGroup(g,members){return members.filter(m=>{for(const[k,vs]of Object.entries(g.filters)){if(vs.length>0&&!vs.includes(m[k]))return false;}return true;});}
@@ -288,9 +378,191 @@ function ConfigPanel({onClose,scriptUrl,setScriptUrl}){
   </div><div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div></div></div>);
 }
 
+// CSV Parser
+function parseCSV(text){
+  const lines=[];let cur=[];let field='';let inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){if(c==='"'){if(text[i+1]==='"'){field+='"';i++;}else inQ=false;}else field+=c;}
+    else{if(c==='"')inQ=true;else if(c===','){cur.push(field);field='';}else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;cur.push(field);if(cur.length>1||cur[0]!=='')lines.push(cur);cur=[];field='';}else field+=c;}
+  }
+  if(field||cur.length)cur.push(field);
+  if(cur.length>1||cur[0]!=='')lines.push(cur);
+  return lines;
+}
+
+function parseDate(d){
+  if(!d)return'';
+  // Handle "14-AUG-2023" format
+  const m={'JAN':'01','FEB':'02','MAR':'03','APR':'04','MAY':'05','JUN':'06','JUL':'07','AUG':'08','SEP':'09','OCT':'10','NOV':'11','DEC':'12'};
+  const p=d.match(/(\d{1,2})-([A-Z]{3})-(\d{4})/);
+  if(p)return `${p[3]}-${m[p[2]]||'01'}-${p[1].padStart(2,'0')}`;
+  return d;
+}
+
+function mapClassToRank(cls,mouRaw){
+  const c=(cls||'').toLowerCase();
+  const mou=mouRaw||'';
+  if(c.includes('specialist'))return{rank:'Specialist',mou:'MOU 30'};
+  if(c.includes('officer i') && !c.includes('ii') && !c.includes('iii'))return{rank:'Officer PI',mou:'MOU 30'};
+  if(c.includes('officer iii'))return mou==='28'?{rank:'Officer PIII',mou:'MOU 28'}:{rank:'Officer PIII',mou:'MOU 28'};
+  if(c.includes('officer ii'))return mou==='28'?{rank:'Officer PII',mou:'MOU 28'}:{rank:'Officer PII',mou:'MOU 30'};
+  if(c.includes('sergeant') && c.includes('municipal'))return{rank:'Sergeant',mou:'MOU 28'};
+  if(c.includes('sergeant'))return mou==='28'?{rank:'Sergeant',mou:'MOU 28'}:{rank:'Sergeant',mou:'MOU 39'};
+  if(c.includes('lieutenant'))return{rank:'Lieutenant',mou:'MOU 39'};
+  if(c.includes('commanding park ranger'))return{rank:'Commanding Park Ranger',mou:'MOU 65'};
+  if(c.includes('senior park ranger'))return{rank:'Park Ranger Supervisor',mou:'MOU 65'};
+  if(c.includes('park ranger'))return{rank:'Park Ranger',mou:'MOU 65'};
+  if(c.includes('municipal') && c.includes('iii'))return{rank:'Officer PIII',mou:'MOU 28'};
+  return{rank:cls||'',mou:mou?`MOU ${mou}`:''};
+}
+
+function mapCsvRow(headers,row){
+  const get=(name)=>{const i=headers.indexOf(name);return i>=0?(row[i]||'').replace(/^="/,'').replace(/"$/,'').replace(/^"/,'').trim():'';};
+  const firstName=get('First Name');
+  const mi=get('Middle Initial');
+  const lastName=get('Last Name');
+  const name=[firstName,mi,lastName].filter(Boolean).join(' ');
+  const phone=get('Emp. Home Telephone Area Code')+get('Emp. Home Telephone Number');
+  const fmtPhone=phone.length>=10?`(${phone.slice(0,3)}) ${phone.slice(3,6)}-${phone.slice(6)}`:'';
+  const workEmail=get('Work Email Address');
+  const persEmail=get('Personal Email Address');
+  // Personal as primary, work as fallback
+  const email=persEmail||workEmail;
+  const mouRaw=get('MOU #');
+  const rankInfo=mapClassToRank(get('Class Title'),mouRaw);
+  const status=get('Employment Status Desc');
+
+  return{
+    id:'imp_'+get('PaySR Employee ID')+'_'+Date.now().toString(36),
+    name,
+    dob:parseDate(get('Birth Date')),
+    address:[get('Emp. Addr. - Street 1'),get('Emp. Addr. - Street 2')].filter(Boolean).join(' '),
+    city:get('Emp. Addr. - City'),
+    state:get('Emp. Addr. - State Abbr.')||'CA',
+    zip:get('Emp. Addr. - Zip'),
+    phone:fmtPhone,
+    email,
+    serialNumber:'',
+    cid:get('PaySR Employee ID'),
+    hireDate:parseDate(get('Original Hire Date')),
+    retirement:'',
+    department:'APD',
+    rank:rankInfo.rank,
+    mou:rankInfo.mou,
+    assignment:'',
+    memberStatus:status==='Active'?'Active':status==='Terminated'?'Terminated':'Inactive',
+    lateralAgency:'',
+    lateralDate:'',
+    memberSince:parseDate(get('Original Hire Date')),
+    notes:workEmail&&persEmail?`Work: ${workEmail}`:'',
+  };
+}
+
+function ImportPanel({onClose,onImport,existingMembers}){
+  const[parsed,setParsed]=useState(null);
+  const[preview,setPreview]=useState([]);
+  const[importing,setImporting]=useState(false);
+  const[filterStatus,setFilterStatus]=useState('all');
+  const fileRef=useRef(null);
+
+  const handleFile=(file)=>{
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const lines=parseCSV(ev.target.result);
+      // Find the header row (has "PaySR Employee ID")
+      let headerIdx=0;
+      for(let i=0;i<Math.min(5,lines.length);i++){
+        if(lines[i].some(c=>c.includes('PaySR'))){headerIdx=i;break;}
+      }
+      const headers=lines[headerIdx].map(h=>h.replace(/^"/,'').replace(/"$/,'').trim());
+      const rows=lines.slice(headerIdx+1).filter(r=>r.length>5);
+      const mapped=rows.map(r=>mapCsvRow(headers,r)).filter(m=>m.name);
+      setParsed(mapped);
+      setPreview(mapped);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDrop=(ev)=>{ev.preventDefault();ev.stopPropagation();const f=ev.dataTransfer?.files?.[0];if(f)handleFile(f);};
+  const handleDragOver=(ev)=>{ev.preventDefault();ev.stopPropagation();};
+
+  const filtered=preview?preview.filter(m=>{
+    if(filterStatus==='active')return m.memberStatus==='Active';
+    if(filterStatus==='terminated')return m.memberStatus==='Terminated';
+    return true;
+  }):[];
+
+  // Check for duplicates by CID
+  const existingCids=new Set(existingMembers.map(m=>m.cid).filter(Boolean));
+  const newRecords=filtered.filter(m=>!existingCids.has(m.cid));
+  const dupes=filtered.filter(m=>existingCids.has(m.cid));
+
+  const stats=preview?{total:preview.length,active:preview.filter(m=>m.memberStatus==='Active').length,terminated:preview.filter(m=>m.memberStatus==='Terminated').length,newCount:newRecords.length,dupeCount:dupes.length}:null;
+
+  return(<div className="overlay" onClick={onClose}><div className="panel ep" onClick={e=>e.stopPropagation()}>
+    <div className="ph"><h2>{IC.upload} Import Members</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb">
+      {!parsed?<>
+        <div className="import-drop" onClick={()=>fileRef.current?.click()} onDrop={handleDrop} onDragOver={handleDragOver}>
+          {IC.upload}
+          <p style={{marginTop:12,fontWeight:600}}>Drop CSV file here or click to browse</p>
+          <p style={{marginTop:4,fontSize:12}}>Accepts City demographics CSV exports</p>
+          <input ref={fileRef} type="file" accept=".csv" onChange={e=>handleFile(e.target.files[0])}/>
+        </div>
+        <div className="cinfo">
+          <p><strong>Supported format:</strong></p>
+          <p>City of Los Angeles Employee Demographics CSV (V075 payroll export). The file must include columns for PaySR Employee ID, First Name, Last Name, Class Title, MOU #, and address fields.</p>
+        </div>
+      </>:<>
+        <div className="import-stat">
+          <div className="is"><div className="isn">{stats.total}</div><div className="isl">Total in file</div></div>
+          <div className="is"><div className="isn" style={{color:'var(--green)'}}>{stats.active}</div><div className="isl">Active</div></div>
+          <div className="is"><div className="isn" style={{color:'var(--red)'}}>{stats.terminated}</div><div className="isl">Terminated</div></div>
+          <div className="is"><div className="isn" style={{color:'var(--blue)'}}>{stats.newCount}</div><div className="isl">New records</div></div>
+          <div className="is"><div className="isn" style={{color:'var(--text-muted)'}}>{stats.dupeCount}</div><div className="isl">Already exist</div></div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <span style={{fontSize:12,fontWeight:600,color:'var(--text-dim)',marginRight:8}}>Show:</span>
+          {[['all','All'],['active','Active only'],['terminated','Terminated only']].map(([v,l])=>
+            <button key={v} onClick={()=>setFilterStatus(v)} style={{padding:'4px 12px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',border:`1px solid ${filterStatus===v?'var(--gold)':'var(--border)'}`,background:filterStatus===v?'var(--gold-dim)':'var(--navy)',color:filterStatus===v?'var(--gold)':'var(--text-dim)',marginRight:6,fontFamily:'inherit'}}>{l}</button>
+          )}
+        </div>
+
+        {dupes.length>0&&<div className="cinfo" style={{borderColor:'var(--border-bright)'}}>
+          <p><strong>{dupes.length} duplicate(s)</strong> found by CID — these already exist in your member list and will be skipped.</p>
+        </div>}
+
+        <div className="import-preview">
+          <table><thead><tr><th>Name</th><th>CID</th><th>Rank</th><th>MOU</th><th>Status</th><th>Email</th></tr></thead>
+          <tbody>{filtered.slice(0,100).map((m,i)=>{
+            const isDupe=existingCids.has(m.cid);
+            return<tr key={i} style={{opacity:isDupe?.4:1}}>
+              <td style={{fontWeight:600}}>{m.name}{isDupe&&<span style={{color:'var(--text-muted)',fontWeight:400,marginLeft:4}}>(exists)</span>}</td>
+              <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{m.cid}</span></td>
+              <td>{m.rank}</td>
+              <td>{m.mou}</td>
+              <td><span className={`badge-s s-${m.memberStatus}`}>{m.memberStatus}</span></td>
+              <td style={{fontSize:11,color:'var(--text-dim)'}}>{m.email}</td>
+            </tr>;
+          })}</tbody></table>
+          {filtered.length>100&&<div style={{padding:10,fontSize:12,color:'var(--text-muted)',textAlign:'center'}}>Showing first 100 of {filtered.length}</div>}
+        </div>
+      </>}
+    </div>
+    <div className="pf">
+      {parsed&&<button className="btn" onClick={()=>setParsed(null)}>Back</button>}
+      <button className="btn" onClick={onClose}>Cancel</button>
+      {parsed&&<button className="btn btn-gold" disabled={newRecords.length===0||importing} onClick={()=>{setImporting(true);onImport(newRecords);}}>{IC.plus} Import {newRecords.length} New Member{newRecords.length!==1?'s':''}</button>}
+    </div>
+  </div></div>);
+}
+
 function App(){
   const[authToken,setAuthToken]=useState(null);const[user,setUser]=useState(null);const[backendUrl,setBackendUrl]=useState(API_URL);const[demoMode,setDemoMode]=useState(false);
-  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);
+  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);const[deleteConfirm,setDeleteConfirm]=useState(null);
   const flash=m=>{setToast(m);setTimeout(()=>setToast(""),2500);};
   const handleLogin=(token,userData,url)=>{setAuthToken(token);setUser(userData);setBackendUrl(url);setDemoMode(false);loadData(url,token);};
   const handleDemo=()=>{setDemoMode(true);setUser({username:"demo",displayName:"Demo User",email:"demo@laapoa.com",role:"admin"});setMembers(DEMO_MEMBERS);setGroups(DEMO_SAVED_GROUPS);};
@@ -307,12 +579,19 @@ function App(){
   const selectAll=()=>{selected.size===sorted.length?setSelected(new Set()):setSelected(new Set(sorted.map(m=>m.id)));};
 
   const handleSave=async(data)=>{if(demoMode){if(editMember){setMembers(ms=>ms.map(m=>m.id===editMember.id?{...data,id:m.id}:m));flash("Member updated");}else{setMembers(ms=>[...ms,{...data,id:Date.now().toString()}]);flash("Member added");}}else{const res=await api(backendUrl,'saveMember',{token:authToken,member:editMember?{...data,id:editMember.id}:data});if(res.ok){flash("Member "+res.action);loadData(backendUrl,authToken);}else flash("Error: "+(res.error||"save failed"));}setPanel(null);setEditMember(null);};
-  const handleDelete=async(id)=>{if(demoMode){setMembers(ms=>ms.filter(m=>m.id!==id));}else{const res=await api(backendUrl,'deleteMember',{token:authToken,id});if(res.ok)loadData(backendUrl,authToken);else{flash("Error: "+(res.error||"delete failed"));return;}}setSelected(s=>{const n=new Set(s);n.delete(id);return n;});flash("Member removed");};
+  const handleDelete=async(id)=>{if(demoMode){setMembers(ms=>ms.filter(m=>m.id!==id));}else{const res=await api(backendUrl,'deleteMember',{token:authToken,id});if(res.ok)loadData(backendUrl,authToken);else{flash("Error: "+(res.error||"delete failed"));setDeleteConfirm(null);return;}}setSelected(s=>{const n=new Set(s);n.delete(id);return n;});flash("Member removed");setDeleteConfirm(null);};
   const handleSendEmail=async({subject,body,recipients})=>{if(demoMode){flash(`[Demo] Email queued to ${recipients.length} recipient(s)`);setPanel(null);return;}setLoading(true);const res=await api(backendUrl,'sendEmail',{token:authToken,recipients:recipients.map(r=>({email:r.email,name:r.name,rank:r.rank})),subject,body});setLoading(false);if(res.ok){flash(`Sent ${res.sent}/${res.total} emails`+(res.errors?.length?` (${res.errors.length} failed)`:''));}else{flash("Error: "+(res.error||"send failed"));}setPanel(null);};
   const handleSaveGroups=async(newGroups)=>{setGroups(newGroups);if(!demoMode){await api(backendUrl,'saveGroups',{token:authToken,groups:newGroups});}};
 
+  const handleImport=async(newMembers)=>{
+    if(demoMode){setMembers(ms=>[...ms,...newMembers]);flash(`Imported ${newMembers.length} members`);setPanel(null);return;}
+    setLoading(true);let ok=0;
+    for(const m of newMembers){const res=await api(backendUrl,'saveMember',{token:authToken,member:m});if(res.ok)ok++;}
+    await loadData(backendUrl,authToken);setLoading(false);
+    flash(`Imported ${ok}/${newMembers.length} members`);setPanel(null);
+  };
   const stats={total:members.length,active:members.filter(m=>m.memberStatus==="Active").length,retired:members.filter(m=>m.memberStatus==="Retired").length};
-  const COLS=[{key:"name",label:"Name"},{key:"serialNumber",label:"Serial #"},{key:"cid",label:"CID"},{key:"rank",label:"Rank"},{key:"watch",label:"Watch"},{key:"sua",label:"SUA"},{key:"retirement",label:"Ret."},{key:"memberStatus",label:"Status"},{key:"email",label:"Email"}];
+  const COLS=[{key:"name",label:"Name"},{key:"serialNumber",label:"Serial #"},{key:"cid",label:"CID"},{key:"rank",label:"Rank"},{key:"mou",label:"MOU"},{key:"assignment",label:"Assignment"},{key:"memberStatus",label:"Status"},{key:"email",label:"Email"}];
   const activePills=Object.entries(filters).flatMap(([k,vs])=>vs.map(v=>({key:k,value:v,label:(FIELDS.find(f=>f.key===k)||{}).label||k})));
 
   return(<div className="app">
@@ -322,6 +601,7 @@ function App(){
         <div className="nav-section">Main</div>
         <button className="nav-item active">{IC.users} Members</button>
         <button className="nav-item" onClick={()=>setPanel("email")}>{IC.mail} Compose Email</button>
+        <button className="nav-item" onClick={()=>setPanel("import")}>{IC.upload} Import CSV</button>
         <div className="nav-section">Groups</div>
         {groups.map(g=><button key={g.id} className="nav-item" onClick={()=>{setFilters(g.filters);setPanel(null);}}><span className="dot" style={{background:g.color}}/>{g.name}<span className="cnt">{resolveGroup(g,members).length}</span></button>)}
         <button className="nav-item" onClick={()=>setPanel("groups")}>{IC.plus} Manage Groups</button>
@@ -353,12 +633,12 @@ function App(){
             <td style={{fontWeight:600}}>{m.name}</td>
             <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.serialNumber}</span></td>
             <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.cid}</span></td>
-            <td>{m.rank}</td><td>{m.watch}</td>
-            <td>{m.sua!=="None"?m.sua:<span style={{color:"var(--text-muted)"}}>—</span>}</td>
-            <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.retirement}</span></td>
+            <td>{m.rank}</td>
+            <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.mou}</span></td>
+            <td>{m.assignment||<span style={{color:"var(--text-muted)"}}>—</span>}</td>
             <td><span className={`badge-s s-${m.memberStatus}`}>{m.memberStatus}</span></td>
             <td style={{fontSize:12,color:"var(--text-dim)"}}>{m.email}</td>
-            <td><div className="racts"><button onClick={()=>{setEditMember(m);setPanel("edit");}}>{IC.edit}</button><button className="del" onClick={()=>handleDelete(m.id)}>{IC.trash}</button></div></td>
+            <td><div className="racts"><button onClick={()=>{setEditMember(m);setPanel("edit");}}>{IC.edit}</button><button className="del" onClick={()=>setDeleteConfirm(m)}>{IC.trash}</button></div></td>
           </tr>)}
         </tbody></table>}
       </div>
@@ -368,6 +648,13 @@ function App(){
     {panel==="filter"&&<FilterPanel filters={filters} setFilters={setFilters} onClose={()=>setPanel(null)}/>}
     {panel==="groups"&&<GroupManager groups={groups} setGroups={g=>handleSaveGroups(g)} members={members} filters={filters} onClose={()=>setPanel(null)}/>}
     {panel==="config"&&<ConfigPanel scriptUrl={backendUrl} setScriptUrl={setBackendUrl} onClose={()=>setPanel(null)}/>}
+    {panel==="import"&&<ImportPanel onClose={()=>setPanel(null)} onImport={handleImport} existingMembers={members}/>}
+    {deleteConfirm&&<div className="confirm-overlay" onClick={()=>setDeleteConfirm(null)}><div className="confirm-box" onClick={e=>e.stopPropagation()}>
+      <h3>Delete Member</h3>
+      <p>Are you sure you want to permanently remove <span className="cname">{deleteConfirm.name}</span>?</p>
+      <p style={{fontSize:12}}>CID: {deleteConfirm.cid||"N/A"} · {deleteConfirm.rank} · {deleteConfirm.mou}</p>
+      <div className="cactions"><button className="btn" onClick={()=>setDeleteConfirm(null)}>Cancel</button><button className="btn btn-red" onClick={()=>handleDelete(deleteConfirm.id)}>{IC.trash} Delete</button></div>
+    </div></div>}
     <Toast msg={toast}/>
   </div>);
 }
