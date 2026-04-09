@@ -193,7 +193,7 @@ const FIELDS = [
   {key:"cid",label:"City Employee ID (CID)",type:"text",group:"employment"},
   {key:"hireDate",label:"Hire Date",type:"date",group:"employment"},
   {key:"retirement",label:"Retirement System",type:"select",options:["LAFPP","LACERS"],group:"employment"},
-  {key:"department",label:"Department",type:"select",options:["APD","LAWA Admin","Maintenance","Other"],group:"employment"},
+  {key:"department",label:"Department",type:"text",group:"employment",readonly:true},
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
   {key:"assignment",label:"Assignment",type:"select",options:["PSS","Watch 1","Watch 2","Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","","My unit not listed"],group:"employment"},
@@ -278,8 +278,13 @@ function FI({field,value,onChange,formData}){
     const handleRankChange=(ev)=>{
       const label=ev.target.value;
       const mapped=RANK_MOU_MAP[label];
-      if(mapped){onChange('rank',mapped.rank);onChange('mou',mapped.mou);}
-      else{onChange('rank','');onChange('mou','');}
+      if(mapped){
+        onChange('rank',mapped.rank);
+        onChange('mou',mapped.mou);
+        if(mapped.mou==='MOU 30'||mapped.mou==='MOU 39')onChange('department','Airport Police');
+        else if(mapped.mou==='MOU 28')onChange('department','LAPD');
+        else if(mapped.mou==='MOU 65')onChange('department','Park Rangers');
+      }else{onChange('rank','');onChange('mou','');onChange('department','');}
     };
     return<div className="fd"><label>{field.label}</label><select value={curLabel} onChange={handleRankChange}>
       <option value="">— Select —</option>
@@ -447,7 +452,7 @@ function mapCsvRow(headers,row){
     cid:get('PaySR Employee ID'),
     hireDate:parseDate(get('Original Hire Date')),
     retirement:'',
-    department:'APD',
+    department:rankInfo.mou==='MOU 30'||rankInfo.mou==='MOU 39'?'Airport Police':rankInfo.mou==='MOU 28'?'LAPD':rankInfo.mou==='MOU 65'?'Park Rangers':'',
     rank:rankInfo.rank,
     mou:rankInfo.mou,
     assignment:'',
