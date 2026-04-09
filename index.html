@@ -196,7 +196,7 @@ const FIELDS = [
   {key:"department",label:"Department",type:"text",group:"employment",readonly:true},
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
-  {key:"assignment",label:"Assignment",type:"select",options:["PSS","Watch 1","Watch 2","Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","","My unit not listed"],group:"employment"},
+  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed"],group:"employment"},
   {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
   {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
@@ -256,10 +256,10 @@ async function apiGet(url,action,token){if(!url)return{error:'No API URL configu
 const DEMO_MEMBERS=[
   {id:"1",name:"John Martinez",dob:"1985-03-15",address:"123 Aviation Blvd",city:"El Segundo",state:"CA",zip:"90245",phone:"(310) 555-0101",email:"jmartinez@email.com",serialNumber:"12345",cid:"CID00101",hireDate:"2010-06-01",retirement:"LAFPP",department:"APD",rank:"Officer PII",mou:"MOU 30",assignment:"K9s",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2010-07-01",notes:""},
   {id:"2",name:"Sarah Chen",dob:"1990-08-22",address:"456 Sepulveda Blvd",city:"Manhattan Beach",state:"CA",zip:"90266",phone:"(310) 555-0102",email:"schen@email.com",serialNumber:"12890",cid:"CID00202",hireDate:"2015-01-15",retirement:"LACERS",department:"APD",rank:"Officer PII",mou:"MOU 30",assignment:"Motors",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2015-02-01",notes:""},
-  {id:"3",name:"Robert Williams",dob:"1978-11-03",address:"789 Rosecrans Ave",city:"Hawthorne",state:"CA",zip:"90250",phone:"(310) 555-0103",email:"rwilliams@email.com",serialNumber:"10234",cid:"CID00303",hireDate:"2005-09-20",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"Watch 3",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2005-10-01",notes:"Union steward"},
+  {id:"3",name:"Robert Williams",dob:"1978-11-03",address:"789 Rosecrans Ave",city:"Hawthorne",state:"CA",zip:"90250",phone:"(310) 555-0103",email:"rwilliams@email.com",serialNumber:"10234",cid:"CID00303",hireDate:"2005-09-20",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"PSS Watch 3",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2005-10-01",notes:"Union steward"},
   {id:"4",name:"Maria Lopez",dob:"1992-05-10",address:"321 Imperial Hwy",city:"Inglewood",state:"CA",zip:"90301",phone:"(310) 555-0104",email:"mlopez@email.com",serialNumber:"14567",cid:"CID00404",hireDate:"2018-03-12",retirement:"LACERS",department:"APD",rank:"Officer PIII",mou:"MOU 28",assignment:"APIC",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2018-04-01",notes:""},
   {id:"5",name:"David Park",dob:"1988-01-28",address:"654 Crenshaw Blvd",city:"Torrance",state:"CA",zip:"90501",phone:"(310) 555-0105",email:"dpark@email.com",serialNumber:"11678",cid:"CID00505",hireDate:"2012-07-08",retirement:"LAFPP",department:"APD",rank:"Lieutenant",mou:"MOU 39",assignment:"Training",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2012-08-01",notes:""},
-  {id:"6",name:"Angela Foster",dob:"1983-12-19",address:"987 Pacific Coast Hwy",city:"Redondo Beach",state:"CA",zip:"90277",phone:"(310) 555-0106",email:"afoster@email.com",serialNumber:"11234",cid:"CID00606",hireDate:"2008-04-30",retirement:"LAFPP",department:"APD",rank:"Specialist",mou:"MOU 30",assignment:"Watch 2",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2008-05-15",notes:""},
+  {id:"6",name:"Angela Foster",dob:"1983-12-19",address:"987 Pacific Coast Hwy",city:"Redondo Beach",state:"CA",zip:"90277",phone:"(310) 555-0106",email:"afoster@email.com",serialNumber:"11234",cid:"CID00606",hireDate:"2008-04-30",retirement:"LAFPP",department:"APD",rank:"Specialist",mou:"MOU 30",assignment:"PSS Watch 2",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2008-05-15",notes:""},
   {id:"7",name:"Thomas Reed",dob:"1970-07-04",address:"147 Main St",city:"Lawndale",state:"CA",zip:"90260",phone:"(310) 555-0107",email:"treed@email.com",serialNumber:"08901",cid:"CID00707",hireDate:"1998-01-05",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"",memberStatus:"Retired",lateralAgency:"",lateralDate:"",memberSince:"1998-02-01",notes:"Retired 2025"},
 ];
 const DEMO_SAVED_GROUPS=[{id:"g1",name:"All Active Members",filters:{memberStatus:["Active"]},color:"#27AE60"},{id:"g2",name:"MOU 39 — Sgts & Lts",filters:{mou:["MOU 39"]},color:"#C6973F"},{id:"g3",name:"Watch 3 Crew",filters:{watch:["Watch 3"]},color:"#3498DB"}];
@@ -310,17 +310,27 @@ function FI({field,value,onChange,formData}){
   }
   if(field.type==="select"){
     if(field.key==="assignment"){
-      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>
-        <option value="PSS">PSS</option><option value="Watch 1">Watch 1</option><option value="Watch 2">Watch 2</option><option value="Watch 3">Watch 3</option>
+      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={ev=>onChange("assignment",ev.target.value)}><option value="">— Select —</option>
+        <optgroup label="PSS">
+          <option value="PSS Watch 1">PSS Watch 1</option>
+          <option value="PSS Watch 2">PSS Watch 2</option>
+          <option value="PSS Watch 3">PSS Watch 3</option>
+        </optgroup>
+        <optgroup label="Specialized Units">
+          <option value="APIC">APIC</option>
+          <option value="Court Liaison">Court Liaison</option>
+          <option value="CTF">CTF</option>
+          <option value="Dignitary Protection">Dignitary Protection</option>
+          <option value="ESU">ESU</option>
+          <option value="K9s">K9s</option>
+          <option value="Motors">Motors</option>
+          <option value="Range">Range</option>
+          <option value="Special Projects">Special Projects</option>
+          <option value="Training">Training</option>
+          <option value="VAAU">VAAU</option>
+        </optgroup>
         <option disabled>──────────</option>
-        <option value="APIC">APIC</option><option value="Court Liaison">Court Liaison</option><option value="CTF">CTF</option><option value="Dignitary Protection">Dignitary Protection</option><option value="ESU">ESU</option><option value="K9s">K9s</option><option value="Motors">Motors</option><option value="Range">Range</option><option value="Special Projects">Special Projects</option><option value="Training">Training</option><option value="VAAU">VAAU</option>
-        <option disabled>──────────</option><option value="My unit not listed">My unit not listed</option>
-      </select></div>;
-    }
-    if(field.key==="specialUnit"){
-      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>
-        <option value="APIC">APIC</option><option value="Court Liaison">Court Liaison</option><option value="CTF">CTF</option><option value="Dignitary Protection">Dignitary Protection</option><option value="ESU">ESU</option><option value="K9s">K9s</option><option value="Motors">Motors</option><option value="Range">Range</option><option value="Special Projects">Special Projects</option><option value="Training">Training</option><option value="VAAU">VAAU</option>
-        <option disabled>──────────</option><option value="My unit not listed">My unit not listed</option>
+        <option value="My unit not listed">My unit not listed</option>
       </select></div>;
     }
     return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>{field.options.filter(o=>o!=='').map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
