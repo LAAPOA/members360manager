@@ -310,7 +310,7 @@ function FI({field,value,onChange,formData,setMulti}){
   }
   if(field.type==="select"){
     if(field.key==="assignment"){
-      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={ev=>onChange("assignment",ev.target.value)}><option value="">— Select —</option>
+      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={ev=>{const v=ev.target.value;setMulti({assignment:v});}}><option value="">— Select —</option>
         <optgroup label="PSS">
           <option value="PSS Watch 1">PSS Watch 1</option>
           <option value="PSS Watch 2">PSS Watch 2</option>
@@ -333,18 +333,20 @@ function FI({field,value,onChange,formData,setMulti}){
         <option value="My unit not listed">My unit not listed</option>
       </select></div>;
     }
-    return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>onChange(field.key,e.target.value)}><option value="">— Select —</option>{field.options.filter(o=>o!=='').map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
+    return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>setMulti({[field.key]:e.target.value})}><option value="">— Select —</option>{field.options.filter(o=>o!=='').map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
   }
-  if(field.type==="textarea")return<div className="fd"><label>{field.label}</label><textarea value={value||""} onChange={e=>onChange(field.key,e.target.value)}/></div>;
-  return<div className="fd"><label>{field.label}</label><input type={field.type} value={value||""} onChange={e=>onChange(field.key,e.target.value)} placeholder={field.label}/></div>;
+  if(field.type==="textarea")return<div className="fd"><label>{field.label}</label><textarea value={value||""} onChange={e=>setMulti({[field.key]:e.target.value})}/></div>;
+  return<div className="fd"><label>{field.label}</label><input type={field.type} value={value||""} onChange={e=>setMulti({[field.key]:e.target.value})} placeholder={field.label}/></div>;
 }
 
 function MemberForm({member,onSave,onClose,title}){
   const[data,setData]=useState(member||FIELDS.reduce((a,f)=>({...a,[f.key]:f.default||""}),{}));
-  const set=(k,v)=>{setData(prev=>{const nd={...prev,[k]:v};
-    if(k==="memberStatus"&&v!=="Lateral"){nd.lateralAgency="";nd.lateralDate="";}
-    return nd;});};
-  const setMulti=(updates)=>{setData(prev=>{const nd={...prev,...updates};return nd;});};
+  const setMulti=(updates)=>{setData(prev=>({...prev,...updates}));};
+  const set=(k,v)=>{
+    const updates={[k]:v};
+    if(k==="memberStatus"&&v!=="Lateral"){updates.lateralAgency="";updates.lateralDate="";}
+    setMulti(updates);
+  };
   const grouped={};FIELDS.forEach(f=>{if(!grouped[f.group])grouped[f.group]=[];grouped[f.group].push({...f});});
   const shouldShow=(f)=>{if(!f.conditional)return true;return data[f.conditional]===f.conditionalValue;};
   return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{title}</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{Object.entries(grouped).map(([g,fields])=>{const paired=new Set();const visibleFields=fields.filter(f=>shouldShow(f));return<div key={g}><div className="fgt">{GROUPS_LABEL[g]}</div>{visibleFields.map((f,i)=>{if(paired.has(f.key))return null;const next=visibleFields[i+1];if(f.type==="textarea"||f.key==="address")return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data} setMulti={setMulti}/></div>;if(next&&!paired.has(next.key)&&next.type!=="textarea"&&next.key!=="address"){paired.add(next.key);return<div className="fr" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data} setMulti={setMulti}/><FI field={next} value={data[next.key]} onChange={set} formData={data} setMulti={setMulti}/></div>;}return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data} setMulti={setMulti}/></div>;})}</div>;})}</div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={()=>onSave(data)}>{IC.check} Save Member</button></div></div></div>);
