@@ -272,19 +272,19 @@ function LoginScreen({onLogin,onDemo}){
   return(<div className="login-wrap"><div className="login-box"><div className="lb-badge">LA</div><h1>LAAPOA</h1><div className="lb-sub">Member Management System</div>{showUrl&&<div className="lf"><label>Apps Script Backend URL</label><input value={apiUrl} onChange={e=>setApiUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec"/></div>}{error&&<div className="lerr">{error}</div>}<div className="lf"><label>Username</label><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="Username" autoFocus onKeyDown={e=>e.key==="Enter"&&handleLogin()}/></div><div className="lf"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" onKeyDown={e=>e.key==="Enter"&&handleLogin()}/></div><button className="lbtn" onClick={handleLogin} disabled={loading}>{loading?"Signing in...":"Sign In"}</button>{!showUrl&&<div style={{textAlign:"center",marginTop:8}}><button onClick={()=>setShowUrl(true)} style={{background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Change backend URL</button></div>}<div className="ldemo">Or <button onClick={onDemo}>enter demo mode</button> without a backend</div></div></div>);
 }
 
-function FI({field,value,onChange,formData}){
+function FI({field,value,onChange,formData,setMulti}){
   if(field.type==="rank_select"){
     const curLabel=rankToLabel(formData?.rank,formData?.mou);
     const handleRankChange=(ev)=>{
       const label=ev.target.value;
       const mapped=RANK_MOU_MAP[label];
       if(mapped){
-        onChange('rank',mapped.rank);
-        onChange('mou',mapped.mou);
-        if(mapped.mou==='MOU 30'||mapped.mou==='MOU 39')onChange('department','Airport Police');
-        else if(mapped.mou==='MOU 28')onChange('department','LAPD');
-        else if(mapped.mou==='MOU 65')onChange('department','Park Rangers');
-      }else{onChange('rank','');onChange('mou','');onChange('department','');}
+        let dept='';
+        if(mapped.mou==='MOU 30'||mapped.mou==='MOU 39')dept='Airport Police';
+        else if(mapped.mou==='MOU 28')dept='LAPD';
+        else if(mapped.mou==='MOU 65')dept='Park Rangers';
+        setMulti({rank:mapped.rank,mou:mapped.mou,department:dept});
+      }else{setMulti({rank:'',mou:'',department:''});}
     };
     return<div className="fd"><label>{field.label}</label><select value={curLabel} onChange={handleRankChange}>
       <option value="">— Select —</option>
@@ -340,12 +340,14 @@ function FI({field,value,onChange,formData}){
 }
 
 function MemberForm({member,onSave,onClose,title}){
-  const[data,setData]=useState(member||FIELDS.reduce((a,f)=>({...a,[f.key]:f.default||""}),{}));const set=(k,v)=>{setData(d=>{const nd={...d,[k]:v};
+  const[data,setData]=useState(member||FIELDS.reduce((a,f)=>({...a,[f.key]:f.default||""}),{}));
+  const set=(k,v)=>{setData(prev=>{const nd={...prev,[k]:v};
     if(k==="memberStatus"&&v!=="Lateral"){nd.lateralAgency="";nd.lateralDate="";}
     return nd;});};
+  const setMulti=(updates)=>{setData(prev=>{const nd={...prev,...updates};return nd;});};
   const grouped={};FIELDS.forEach(f=>{if(!grouped[f.group])grouped[f.group]=[];grouped[f.group].push({...f});});
   const shouldShow=(f)=>{if(!f.conditional)return true;return data[f.conditional]===f.conditionalValue;};
-  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{title}</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{Object.entries(grouped).map(([g,fields])=>{const paired=new Set();const visibleFields=fields.filter(f=>shouldShow(f));return<div key={g}><div className="fgt">{GROUPS_LABEL[g]}</div>{visibleFields.map((f,i)=>{if(paired.has(f.key))return null;const next=visibleFields[i+1];if(f.type==="textarea"||f.key==="address")return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data}/></div>;if(next&&!paired.has(next.key)&&next.type!=="textarea"&&next.key!=="address"){paired.add(next.key);return<div className="fr" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data}/><FI field={next} value={data[next.key]} onChange={set} formData={data}/></div>;}return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data}/></div>;})}</div>;})}</div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={()=>onSave(data)}>{IC.check} Save Member</button></div></div></div>);
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}><div className="ph"><h2>{title}</h2><button onClick={onClose}>{IC.x}</button></div><div className="pb">{Object.entries(grouped).map(([g,fields])=>{const paired=new Set();const visibleFields=fields.filter(f=>shouldShow(f));return<div key={g}><div className="fgt">{GROUPS_LABEL[g]}</div>{visibleFields.map((f,i)=>{if(paired.has(f.key))return null;const next=visibleFields[i+1];if(f.type==="textarea"||f.key==="address")return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data} setMulti={setMulti}/></div>;if(next&&!paired.has(next.key)&&next.type!=="textarea"&&next.key!=="address"){paired.add(next.key);return<div className="fr" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data} setMulti={setMulti}/><FI field={next} value={data[next.key]} onChange={set} formData={data} setMulti={setMulti}/></div>;}return<div className="fr full" key={f.key}><FI field={f} value={data[f.key]} onChange={set} formData={data} setMulti={setMulti}/></div>;})}</div>;})}</div><div className="pf"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-gold" onClick={()=>onSave(data)}>{IC.check} Save Member</button></div></div></div>);
 }
 
 function resolveGroup(g,members){return members.filter(m=>{for(const[k,vs]of Object.entries(g.filters)){if(vs.length>0&&!vs.includes(m[k]))return false;}return true;});}
