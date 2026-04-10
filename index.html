@@ -764,7 +764,6 @@ function ContactCard({member,onClose,onEdit}){
     <div className="cc-actions">
       <button className="btn" onClick={onClose}>Close</button>
       <button className="btn" onClick={()=>setShowShare(!showShare)}>{IC.share} {showShare?'Hide':'Share'}</button>
-      <button className="btn btn-gold" onClick={()=>{onClose();onEdit(m);}}>{IC.edit} Edit</button>
     </div>
   </div></div>);
 }
