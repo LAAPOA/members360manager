@@ -214,7 +214,7 @@ const FIELDS = [
   {key:"department",label:"Department",type:"text",group:"employment",readonly:true},
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
-  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed"],group:"employment"},
+  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
   {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
   {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
@@ -306,8 +306,11 @@ function FI({field,value,onChange,formData,setMulti}){
         if(mapped.mou==='MOU 30'||mapped.mou==='MOU 39')dept='Airport Police';
         else if(mapped.mou==='MOU 28')dept='LAPD';
         else if(mapped.mou==='MOU 65')dept='Park Rangers';
-        setMulti({rank:mapped.rank,mou:mapped.mou,department:dept});
-      }else{setMulti({rank:'',mou:'',department:''});}
+        // Clear assignment when MOU changes since options differ
+        const curMou=formData?.mou||'';
+        const clearAssign=curMou!==mapped.mou;
+        setMulti({rank:mapped.rank,mou:mapped.mou,department:dept,...(clearAssign?{assignment:''}:{})});
+      }else{setMulti({rank:'',mou:'',department:'',assignment:''});}
     };
     return<div className="fd"><label>{field.label}</label><select value={curLabel} onChange={handleRankChange}>
       <option value="">— Select —</option>
@@ -333,27 +336,45 @@ function FI({field,value,onChange,formData,setMulti}){
   }
   if(field.type==="select"){
     if(field.key==="assignment"){
-      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={ev=>{const v=ev.target.value;setMulti({assignment:v});}}><option value="">— Select —</option>
-        <optgroup label="PSS">
-          <option value="PSS Watch 1">PSS Watch 1</option>
-          <option value="PSS Watch 2">PSS Watch 2</option>
-          <option value="PSS Watch 3">PSS Watch 3</option>
-        </optgroup>
-        <optgroup label="Specialized Units">
-          <option value="APIC">APIC</option>
-          <option value="Court Liaison">Court Liaison</option>
-          <option value="CTF">CTF</option>
-          <option value="Dignitary Protection">Dignitary Protection</option>
-          <option value="ESU">ESU</option>
-          <option value="K9s">K9s</option>
-          <option value="Motors">Motors</option>
-          <option value="Range">Range</option>
-          <option value="Special Projects">Special Projects</option>
-          <option value="Training">Training</option>
-          <option value="VAAU">VAAU</option>
-        </optgroup>
-        <option disabled>──────────</option>
-        <option value="My unit not listed">My unit not listed</option>
+      const mou=formData?.mou||'';
+      // Clear assignment if switching MOUs and current value doesn't belong
+      return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={ev=>{setMulti({assignment:ev.target.value});}}><option value="">— Select —</option>
+        {(mou==='MOU 30'||mou==='MOU 39')&&<>
+          <optgroup label="PSS">
+            <option value="PSS Watch 1">PSS Watch 1</option>
+            <option value="PSS Watch 2">PSS Watch 2</option>
+            <option value="PSS Watch 3">PSS Watch 3</option>
+          </optgroup>
+          <optgroup label="Specialized Units">
+            <option value="APIC">APIC</option>
+            <option value="Court Liaison">Court Liaison</option>
+            <option value="CTF">CTF</option>
+            <option value="Dignitary Protection">Dignitary Protection</option>
+            <option value="ESU">ESU</option>
+            <option value="K9s">K9s</option>
+            <option value="Motors">Motors</option>
+            <option value="Range">Range</option>
+            <option value="Special Projects">Special Projects</option>
+            <option value="Training">Training</option>
+            <option value="VAAU">VAAU</option>
+          </optgroup>
+          <option disabled>──────────</option>
+          <option value="My unit not listed">My unit not listed</option>
+        </>}
+        {mou==='MOU 28'&&<optgroup label="Municipal Police">
+          <option value="Daily Posts">Daily Posts</option>
+          <option value="Mayor's Post">Mayor's Post</option>
+          <option value="MLO-CRO">MLO-CRO</option>
+          <option value="MLO-Sgt Arms">MLO-Sgt Arms</option>
+        </optgroup>}
+        {mou==='MOU 65'&&<optgroup label="Ranger Duties">
+          <option value="Griffith / Metro RGN">Griffith / Metro RGN</option>
+          <option value="Valley RGN">Valley RGN</option>
+          <option value="Observatory">Observatory</option>
+          <option value="H.R.S.T.">H.R.S.T.</option>
+          <option value="Harbor RGN">Harbor RGN</option>
+        </optgroup>}
+        {!mou&&<option disabled>Select a rank first</option>}
       </select></div>;
     }
     return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={e=>setMulti({[field.key]:e.target.value})}><option value="">— Select —</option>{field.options.filter(o=>o!=='').map(o=><option key={o} value={o}>{o}</option>)}</select></div>;
@@ -621,7 +642,7 @@ function ContactCard({member,onClose,onEdit}){
         <div className="cc-section-title">Contact</div>
         <div className="cc-row"><span className="cc-icon">{IC.mail}</span><span className="cc-label">Email</span><span className="cc-val">{m.email?<a href={`mailto:${m.email}`}>{m.email}</a>:'—'}</span></div>
         <div className="cc-row"><span className="cc-icon">{IC.phone}</span><span className="cc-label">Phone</span><span className="cc-val">{m.phone?<a href={`tel:${m.phone}`}>{m.phone}</a>:'—'}</span></div>
-        <div className="cc-row"><span className="cc-icon">{IC.mappin}</span><span className="cc-label">Address</span><span className="cc-val">{[m.address,m.city,m.state,m.zip].filter(Boolean).join(', ')||'—'}</span></div>
+        <div className="cc-row"><span className="cc-icon">{IC.mappin}</span><span className="cc-label">Address</span><span className="cc-val" style={{whiteSpace:"pre-line"}}>{[m.address,m.city&&m.state?m.city+', '+m.state+' '+m.zip:[m.city,m.state,m.zip].filter(Boolean).join(' ')].filter(Boolean).join('\n')||'—'}</span></div>
       </div>
       <div className="cc-section">
         <div className="cc-section-title">Employment</div>
