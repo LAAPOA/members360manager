@@ -419,7 +419,7 @@ function FI({field,value,onChange,formData,setMulti}){
         </>}
         {mou==='MOU 28'&&<optgroup label="Municipal Police">
           <option value="Daily Posts">Daily Posts</option>
-          <option value="Mayor's Post">Mayor's Post</option>
+          <option value={"Mayor's Post"}>{"Mayor's Post"}</option>
           <option value="MLO-CRO">MLO-CRO</option>
           <option value="MLO-Sgt Arms">MLO-Sgt Arms</option>
         </optgroup>}
@@ -860,7 +860,7 @@ function App(){
   // Restore session from localStorage
   const stored=useMemo(()=>{try{const s=localStorage.getItem('laapoa_session');return s?JSON.parse(s):null;}catch(e){return null;}},[]);
   const[authToken,setAuthToken]=useState(stored?.token||null);const[user,setUser]=useState(stored?.user||null);const[backendUrl,setBackendUrl]=useState(stored?.url||API_URL);const[demoMode,setDemoMode]=useState(false);
-  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);const[deleteConfirm,setDeleteConfirm]=useState(null);const[viewMember,setViewMember]=useState(null);const[mobileMenu,setMobileMenu]=useState(false);const[unreadCount,setUnreadCount]=useState(0);
+  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);const[deleteConfirm,setDeleteConfirm]=useState(null);const[viewMember,setViewMember]=useState(null);const[mobileMenu,setMobileMenu]=useState(false);const[unreadCount,setUnreadCount]=useState(0);const[importAlerts,setImportAlerts]=useState(null);
   const flash=m=>{setToast(m);setTimeout(()=>setToast(""),2500);};
   const handleLogin=(token,userData,url)=>{setAuthToken(token);setUser(userData);setBackendUrl(url);setDemoMode(false);try{localStorage.setItem('laapoa_session',JSON.stringify({token,user:userData,url}));}catch(e){}loadData(url,token);};
   const handleDemo=()=>{setDemoMode(true);setUser({username:"demo",displayName:"Demo User",email:"demo@laapoa.com",role:"admin"});setMembers(DEMO_MEMBERS);setGroups(DEMO_SAVED_GROUPS);};
@@ -884,7 +884,6 @@ function App(){
   const handleSendEmail=async({subject,body,recipients})=>{if(demoMode){flash(`[Demo] Email queued to ${recipients.length} recipient(s)`);setPanel(null);return;}setLoading(true);const res=await api(backendUrl,'sendEmail',{token:authToken,recipients:recipients.map(r=>({email:r.email,name:r.name,rank:r.rank})),subject,body});setLoading(false);if(res.ok){flash(`Sent ${res.sent}/${res.total} emails`+(res.errors?.length?` (${res.errors.length} failed)`:''));}else{flash("Error: "+(res.error||"send failed"));}setPanel(null);};
   const handleSaveGroups=async(newGroups)=>{setGroups(newGroups);if(!demoMode){await api(backendUrl,'saveGroups',{token:authToken,groups:newGroups});}};
 
-  const[importAlerts,setImportAlerts]=useState(null);
   const handleImport=async(newMembers)=>{
     if(demoMode){setMembers(ms=>[...ms,...newMembers]);flash(`Imported ${newMembers.length} members`);setPanel(null);return;}
     setLoading(true);
