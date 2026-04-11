@@ -91,6 +91,22 @@ tr:hover td{background:var(--surface-raised)}
 .share-opt .chk{width:16px;height:16px}
 .share-preview{background:var(--surface-raised);border-radius:var(--radius);padding:10px 12px;margin-top:10px;font-size:12px;color:var(--text-dim);white-space:pre-line;line-height:1.5}
 .share-btns{display:flex;gap:8px;margin-top:10px}
+.notif-badge{background:var(--red);color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;margin-left:auto;font-family:'JetBrains Mono',monospace}
+.notif-list{max-height:100%;overflow-y:auto}
+.notif-item{padding:14px 0;border-bottom:1px solid var(--border)}
+.notif-item:last-child{border-bottom:none}
+.notif-item.unread{border-left:3px solid var(--gold);padding-left:12px;margin-left:-1px}
+.notif-item .ni-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.notif-item .ni-name{font-weight:600;font-size:14px}
+.notif-item .ni-time{font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+.notif-item .ni-change{font-size:13px;color:var(--text-dim);padding:3px 0}
+.notif-item .ni-change .ni-field{color:var(--gold-light);font-weight:500}
+.notif-item .ni-change .ni-old{color:var(--red);text-decoration:line-through;opacity:.7}
+.notif-item .ni-change .ni-new{color:var(--green)}
+.import-alert{background:var(--navy);border:1px solid rgba(230,126,34,.3);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.import-alert .ia-name{font-weight:600;font-size:14px;margin-bottom:4px}
+.import-alert .ia-cid{font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+.import-alert .ia-diff{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.6}
 .import-drop{border:2px dashed var(--border-bright);border-radius:var(--radius);padding:40px 20px;text-align:center;color:var(--text-dim);cursor:pointer;transition:all .15s;margin-bottom:16px}
 .import-drop:hover,.import-drop.drag{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
 .import-drop input{display:none}
@@ -300,10 +316,15 @@ const IC = {
   share: icon('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',16,16),
   menu: icon('<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',20,20),
   copy2: icon('<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',16,16),
+  bell: icon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
 };
 
 // API
-async function api(url,action,payload={}){if(!url)return{error:'No API URL configured'};try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,...payload})});return await r.json();}catch(e){return{error:e.message};}}
+// Get client IP (best effort)
+let _clientIp='unknown';
+fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{_clientIp=d.ip||'unknown';}).catch(()=>{});
+
+async function api(url,action,payload={}){if(!url)return{error:'No API URL configured'};try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,_ip:_clientIp,...payload})});return await r.json();}catch(e){return{error:e.message};}}
 async function apiGet(url,action,token){if(!url)return{error:'No API URL configured'};try{const r=await fetch(`${url}?action=${action}&token=${encodeURIComponent(token)}`);return await r.json();}catch(e){return{error:e.message};}}
 
 const DEMO_MEMBERS=[
@@ -636,8 +657,6 @@ function ImportPanel({onClose,onImport,existingMembers}){
           <div className="is"><div className="isn">{stats.total}</div><div className="isl">Total in file</div></div>
           <div className="is"><div className="isn" style={{color:'var(--green)'}}>{stats.active}</div><div className="isl">Active</div></div>
           <div className="is"><div className="isn" style={{color:'var(--red)'}}>{stats.terminated}</div><div className="isl">Terminated</div></div>
-          <div className="is"><div className="isn" style={{color:'var(--blue)'}}>{stats.newCount}</div><div className="isl">New records</div></div>
-          <div className="is"><div className="isn" style={{color:'var(--text-muted)'}}>{stats.dupeCount}</div><div className="isl">Already exist</div></div>
         </div>
 
         <div style={{marginBottom:12}}>
@@ -647,16 +666,13 @@ function ImportPanel({onClose,onImport,existingMembers}){
           )}
         </div>
 
-        {dupes.length>0&&<div className="cinfo" style={{borderColor:'var(--border-bright)'}}>
-          <p><strong>{dupes.length} duplicate(s)</strong> found by CID — these already exist in your member list and will be skipped.</p>
-        </div>}
+        <div className="cinfo"><p>The server will automatically: <strong>import new members</strong> (by CID), <strong>update names only</strong> for existing members, and <strong>skip all other data</strong> for matches. You'll be alerted if 3+ fields differ.</p></div>
 
         <div className="import-preview">
           <table><thead><tr><th>Name</th><th>CID</th><th>Rank</th><th>MOU</th><th>Status</th><th>Email</th></tr></thead>
           <tbody>{filtered.slice(0,100).map((m,i)=>{
-            const isDupe=existingCids.has(m.cid);
-            return<tr key={i} style={{opacity:isDupe?.4:1}}>
-              <td style={{fontWeight:600}}>{m.name}{isDupe&&<span style={{color:'var(--text-muted)',fontWeight:400,marginLeft:4}}>(exists)</span>}</td>
+            return<tr key={i}>
+              <td style={{fontWeight:600}}>{m.name}</td>
               <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{m.cid}</span></td>
               <td>{m.rank}</td>
               <td>{m.mou}</td>
@@ -671,7 +687,7 @@ function ImportPanel({onClose,onImport,existingMembers}){
     <div className="pf">
       {parsed&&<button className="btn" onClick={()=>setParsed(null)}>Back</button>}
       <button className="btn" onClick={onClose}>Cancel</button>
-      {parsed&&<button className="btn btn-gold" disabled={newRecords.length===0||importing} onClick={()=>{setImporting(true);onImport(newRecords);}}>{IC.plus} Import {newRecords.length} New Member{newRecords.length!==1?'s':''}</button>}
+      {parsed&&<button className="btn btn-gold" disabled={filtered.length===0||importing} onClick={()=>{setImporting(true);onImport(filtered);}}>{IC.plus} Import {filtered.length} Record{filtered.length!==1?'s':''}</button>}
     </div>
   </div></div>);
 }
@@ -768,16 +784,79 @@ function ContactCard({member,onClose,onEdit}){
   </div></div>);
 }
 
+function NotificationPanel({onClose,backendUrl,authToken,flash}){
+  const[changes,setChanges]=useState([]);const[loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    (async()=>{
+      const res=await apiGet(backendUrl,'getChangeLog',authToken);
+      if(res.ok)setChanges(res.changes||[]);
+      setLoading(false);
+    })();
+  },[]);
+
+  const unreadCount=changes.filter(c=>c.read!=='true').length;
+
+  const markAllRead=async()=>{
+    const unreadRows=changes.filter(c=>c.read!=='true').map(c=>parseInt(c._row));
+    if(!unreadRows.length)return;
+    await api(backendUrl,'markChangesRead',{token:authToken,ids:unreadRows});
+    setChanges(cs=>cs.map(c=>({...c,read:'true'})));
+    flash('All notifications marked as read');
+  };
+
+  // Group changes by timestamp+name
+  const grouped=[];
+  const seen=new Set();
+  changes.forEach(c=>{
+    const key=c.timestamp+'|'+c.name;
+    if(!seen.has(key)){seen.add(key);grouped.push({timestamp:c.timestamp,name:c.name,cid:c.cid,read:c.read,changes:[c],_rows:[parseInt(c._row)]});}
+    else{const g=grouped.find(x=>x.timestamp+'|'+x.name===key);if(g){g.changes.push(c);g._rows.push(parseInt(c._row));if(c.read!=='true')g.read='false';}}
+  });
+
+  const fmtTime=(t)=>{
+    if(!t)return'';
+    try{const d=new Date(t);const now=new Date();const diff=(now-d)/(1000*60);
+      if(diff<1)return'Just now';if(diff<60)return Math.floor(diff)+'m ago';if(diff<1440)return Math.floor(diff/60)+'h ago';
+      return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    }catch(e){return t;}
+  };
+
+  return(<div className="overlay" onClick={onClose}><div className="panel" onClick={e=>e.stopPropagation()}>
+    <div className="ph"><h2>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb">
+      {unreadCount>0&&<div style={{marginBottom:16}}><button className="btn btn-sm btn-outline-gold" onClick={markAllRead} style={{width:'auto'}}>{IC.check} Mark all as read</button></div>}
+      {loading?<div className="empty"><p>Loading...</p></div>:
+      grouped.length===0?<div className="empty"><p>No member updates yet</p></div>:
+      <div className="notif-list">{grouped.map((g,i)=>
+        <div key={i} className={`notif-item ${g.read!=='true'?'unread':''}`}>
+          <div className="ni-header">
+            <span className="ni-name">{g.name} <span style={{fontWeight:400,color:'var(--text-muted)',fontSize:12}}>CID: {g.cid}</span></span>
+            <span className="ni-time">{fmtTime(g.timestamp)}</span>
+          </div>
+          {g.changes.map((c,j)=>
+            <div key={j} className="ni-change">
+              <span className="ni-field">{c.field}</span>: <span className="ni-old">{c.oldValue||'(empty)'}</span> → <span className="ni-new">{c.newValue||'(empty)'}</span>
+            </div>
+          )}
+        </div>
+      )}</div>}
+    </div>
+    <div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div>
+  </div></div>);
+}
+
 function App(){
   // Restore session from localStorage
   const stored=useMemo(()=>{try{const s=localStorage.getItem('laapoa_session');return s?JSON.parse(s):null;}catch(e){return null;}},[]);
   const[authToken,setAuthToken]=useState(stored?.token||null);const[user,setUser]=useState(stored?.user||null);const[backendUrl,setBackendUrl]=useState(stored?.url||API_URL);const[demoMode,setDemoMode]=useState(false);
-  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);const[deleteConfirm,setDeleteConfirm]=useState(null);const[viewMember,setViewMember]=useState(null);const[mobileMenu,setMobileMenu]=useState(false);
+  const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);const[deleteConfirm,setDeleteConfirm]=useState(null);const[viewMember,setViewMember]=useState(null);const[mobileMenu,setMobileMenu]=useState(false);const[unreadCount,setUnreadCount]=useState(0);
   const flash=m=>{setToast(m);setTimeout(()=>setToast(""),2500);};
   const handleLogin=(token,userData,url)=>{setAuthToken(token);setUser(userData);setBackendUrl(url);setDemoMode(false);try{localStorage.setItem('laapoa_session',JSON.stringify({token,user:userData,url}));}catch(e){}loadData(url,token);};
   const handleDemo=()=>{setDemoMode(true);setUser({username:"demo",displayName:"Demo User",email:"demo@laapoa.com",role:"admin"});setMembers(DEMO_MEMBERS);setGroups(DEMO_SAVED_GROUPS);};
-  const handleLogout=()=>{setAuthToken(null);setUser(null);setDemoMode(false);setMembers([]);setGroups([]);setSelected(new Set());try{localStorage.removeItem('laapoa_session');}catch(e){}};
-  const loadData=async(url,token)=>{setLoading(true);const[mRes,gRes]=await Promise.all([apiGet(url,'getMembers',token),apiGet(url,'getGroups',token)]);if(mRes.error&&(mRes.code===401||mRes.error==='Unauthorized')){handleLogout();return;}if(mRes.ok)setMembers(mRes.members);else flash("Failed to load members: "+(mRes.error||"unknown"));if(gRes.ok)setGroups(gRes.groups);setLoading(false);};
+  const handleLogout=()=>{setAuthToken(null);setUser(null);setDemoMode(false);setMembers([]);setGroups([]);setSelected(new Set());setUnreadCount(0);try{localStorage.removeItem('laapoa_session');}catch(e){}};
+  const loadData=async(url,token)=>{setLoading(true);const[mRes,gRes]=await Promise.all([apiGet(url,'getMembers',token),apiGet(url,'getGroups',token)]);if(mRes.error&&(mRes.code===401||mRes.error==='Unauthorized')){handleLogout();return;}if(mRes.ok)setMembers(mRes.members);else flash("Failed to load members: "+(mRes.error||"unknown"));if(gRes.ok)setGroups(gRes.groups);setLoading(false);loadUnread(url,token);};
+  const loadUnread=async(url,token)=>{const res=await apiGet(url,'getChangeLog',token);if(res.ok){const ct=(res.changes||[]).filter(c=>c.read!=='true').length;setUnreadCount(ct);}};
   // Auto-load data on restore
   useEffect(()=>{if(stored?.token&&stored?.url){loadData(stored.url,stored.token);}},[]);
 
@@ -795,12 +874,17 @@ function App(){
   const handleSendEmail=async({subject,body,recipients})=>{if(demoMode){flash(`[Demo] Email queued to ${recipients.length} recipient(s)`);setPanel(null);return;}setLoading(true);const res=await api(backendUrl,'sendEmail',{token:authToken,recipients:recipients.map(r=>({email:r.email,name:r.name,rank:r.rank})),subject,body});setLoading(false);if(res.ok){flash(`Sent ${res.sent}/${res.total} emails`+(res.errors?.length?` (${res.errors.length} failed)`:''));}else{flash("Error: "+(res.error||"send failed"));}setPanel(null);};
   const handleSaveGroups=async(newGroups)=>{setGroups(newGroups);if(!demoMode){await api(backendUrl,'saveGroups',{token:authToken,groups:newGroups});}};
 
+  const[importAlerts,setImportAlerts]=useState(null);
   const handleImport=async(newMembers)=>{
     if(demoMode){setMembers(ms=>[...ms,...newMembers]);flash(`Imported ${newMembers.length} members`);setPanel(null);return;}
-    setLoading(true);let ok=0;
-    for(const m of newMembers){const res=await api(backendUrl,'saveMember',{token:authToken,member:m});if(res.ok)ok++;}
+    setLoading(true);
+    const res=await api(backendUrl,'importMembers',{token:authToken,members:newMembers});
     await loadData(backendUrl,authToken);setLoading(false);
-    flash(`Imported ${ok}/${newMembers.length} members`);setPanel(null);
+    if(res.ok){
+      flash(`Imported: ${res.imported} new, ${res.nameUpdated} names updated, ${res.skipped} skipped`);
+      if(res.alerts&&res.alerts.length>0){setImportAlerts(res.alerts);}
+      else{setPanel(null);}
+    }else{flash("Error: "+(res.error||"import failed"));setPanel(null);}
   };
   const stats={total:members.length,active:members.filter(m=>m.memberStatus==="Active").length,retired:members.filter(m=>m.memberStatus==="Retired").length};
   const COLS=[{key:"name",label:"Name"},{key:"serialNumber",label:"Serial #"},{key:"cid",label:"CID"},{key:"rank",label:"Rank"},{key:"mou",label:"MOU"},{key:"assignment",label:"Assignment"},{key:"memberStatus",label:"Status"},{key:"email",label:"Email"}];
@@ -815,6 +899,7 @@ function App(){
         <button className="nav-item active" onClick={()=>setMobileMenu(false)}>{IC.users} Members</button>
         <button className="nav-item" onClick={()=>{setPanel("email");setMobileMenu(false);}}>{IC.mail} Compose Email</button>
         <button className="nav-item" onClick={()=>{setPanel("import");setMobileMenu(false);}}>{IC.upload} Import CSV</button>
+        <button className="nav-item" onClick={()=>{setPanel("notifications");setMobileMenu(false);}}>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</button>
         <div className="nav-section">Groups</div>
         {groups.map(g=><button key={g.id} className="nav-item" onClick={()=>{setFilters(g.filters);setPanel(null);setMobileMenu(false);}}><span className="dot" style={{background:g.color}}/>{g.name}<span className="cnt">{resolveGroup(g,members).length}</span></button>)}
         <button className="nav-item" onClick={()=>{setPanel("groups");setMobileMenu(false);}}>{IC.plus} Manage Groups</button>
@@ -863,6 +948,19 @@ function App(){
     {panel==="groups"&&<GroupManager groups={groups} setGroups={g=>handleSaveGroups(g)} members={members} filters={filters} onClose={()=>setPanel(null)}/>}
     {panel==="config"&&<ConfigPanel scriptUrl={backendUrl} setScriptUrl={setBackendUrl} onClose={()=>setPanel(null)}/>}
     {panel==="import"&&<ImportPanel onClose={()=>setPanel(null)} onImport={handleImport} existingMembers={members}/>}
+    {panel==="notifications"&&<NotificationPanel onClose={()=>{setPanel(null);loadUnread(backendUrl,authToken);}} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
+    {importAlerts&&<div className="confirm-overlay" onClick={()=>{setImportAlerts(null);setPanel(null);}}><div className="panel" onClick={ev=>ev.stopPropagation()}>
+      <div className="ph"><h2 style={{color:'#E67E22'}}>Import Alerts — Significant Changes Detected</h2><button onClick={()=>{setImportAlerts(null);setPanel(null);}}>{IC.x}</button></div>
+      <div className="pb">
+        <div className="warn" style={{marginBottom:16}}>The following {importAlerts.length} member(s) have 3 or more fields that differ between the import file and their existing record. No changes were made to these fields — only names were updated if different. Review these manually.</div>
+        {importAlerts.map((a,i)=><div key={i} className="import-alert">
+          <div className="ia-name">{a.name}</div>
+          <div className="ia-cid">CID: {a.cid} · {a.differences} differences</div>
+          <div className="ia-diff">{a.fields.map((f,j)=><div key={j}>{f}</div>)}</div>
+        </div>)}
+      </div>
+      <div className="pf"><button className="btn btn-gold" onClick={()=>{setImportAlerts(null);setPanel(null);}}>Acknowledged</button></div>
+    </div></div>}
     {viewMember&&<ContactCard member={viewMember} onClose={()=>setViewMember(null)} onEdit={(m)=>{setViewMember(null);setEditMember(m);setPanel("edit");}}/>}
     {deleteConfirm&&<div className="confirm-overlay" onClick={()=>setDeleteConfirm(null)}><div className="confirm-box" onClick={e=>e.stopPropagation()}>
       <h3>Delete Member</h3>
