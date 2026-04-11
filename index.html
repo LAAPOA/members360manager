@@ -263,9 +263,11 @@ const FIELDS = [
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"memberSince",label:"Member Since",type:"date",group:"membership"},
   {key:"notes",label:"Notes",type:"textarea",group:"membership"},
+  {key:"directoryOptOut",label:"Hidden from Directory",type:"select",options:["false","true"],group:"privacy"},
+  {key:"directoryOptOutTime",label:"Cooldown Timer",type:"text",group:"privacy"},
 ];
 
-const GROUPS_LABEL = {personal:"Personal Information",employment:"Employment Details",membership:"LAAPOA Membership"};
+const GROUPS_LABEL = {personal:"Personal Information",employment:"Employment Details",membership:"LAAPOA Membership",privacy:"Directory & Privacy"};
 const MERGE_FIELDS = [{tag:"{{name}}",label:"Full Name",key:"name"},{tag:"{{rank}}",label:"Rank",key:"rank"}];
 
 const RANK_MOU_MAP = {
@@ -761,6 +763,11 @@ function ContactCard({member,onClose,onEdit}){
         </>}
         {m.dob&&<div className="cc-row"><span className="cc-icon">{IC.calendar}</span><span className="cc-label">DOB</span><span className="cc-val">{fmtDate(m.dob)}</span></div>}
         {m.notes&&<div className="cc-row"><span className="cc-icon">{IC.edit}</span><span className="cc-label">Notes</span><span className="cc-val">{m.notes}</span></div>}
+      </div>
+      <div className="cc-section">
+        <div className="cc-section-title">Directory</div>
+        <div className="cc-row"><span className="cc-icon">{IC.person}</span><span className="cc-label">Visibility</span><span className="cc-val" style={{color:m.directoryOptOut==='true'?'var(--red)':'var(--green)'}}>{m.directoryOptOut==='true'?'Hidden':'Visible'}</span></div>
+        {m.directoryOptOutTime&&<div className="cc-row"><span className="cc-icon">{IC.calendar}</span><span className="cc-label">Cooldown Set</span><span className="cc-val" style={{fontSize:12}}>{m.directoryOptOutTime}</span></div>}
       </div>
 
       {showShare&&<div className="share-panel">
