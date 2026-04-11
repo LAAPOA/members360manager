@@ -258,7 +258,7 @@ const FIELDS = [
   {key:"department",label:"Department",type:"text",group:"employment",readonly:true},
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
-  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
+  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","Internal Affairs","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
   {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
   {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
@@ -407,6 +407,7 @@ function FI({field,value,onChange,formData,setMulti}){
             <option value="CTF">CTF</option>
             <option value="Dignitary Protection">Dignitary Protection</option>
             <option value="ESU">ESU</option>
+            {mou==='MOU 39'&&<option value="Internal Affairs">Internal Affairs</option>}
             <option value="K9s">K9s</option>
             <option value="Motors">Motors</option>
             <option value="Range">Range</option>
