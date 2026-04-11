@@ -248,7 +248,8 @@ const FIELDS = [
   {key:"city",label:"City",type:"text",group:"personal"},
   {key:"state",label:"State",type:"text",group:"personal",default:"CA"},
   {key:"zip",label:"ZIP",type:"text",group:"personal"},
-  {key:"phone",label:"Phone",type:"tel",group:"personal"},
+  {key:"phone",label:"Mobile Phone",type:"tel",group:"personal"},
+  {key:"cityCell",label:"City Cell",type:"tel",group:"personal"},
   {key:"email",label:"Email",type:"email",required:true,group:"personal"},
   {key:"serialNumber",label:"Serial Number",type:"text",group:"employment"},
   {key:"cid",label:"City Employee ID (CID)",type:"text",group:"employment"},
@@ -264,7 +265,9 @@ const FIELDS = [
   {key:"memberSince",label:"Member Since",type:"date",group:"membership"},
   {key:"notes",label:"Notes",type:"textarea",group:"membership"},
   {key:"directoryOptOut",label:"Hidden from Directory",type:"select",options:["false","true"],group:"privacy"},
-  {key:"directoryOptOutTime",label:"Cooldown Timer",type:"text",group:"privacy"},
+  {key:"directoryOptOutTime",label:"Directory Cooldown",type:"text",group:"privacy"},
+  {key:"showMobilePhone",label:"Show Mobile in Directory",type:"select",options:["false","true"],group:"privacy"},
+  {key:"showMobilePhoneTime",label:"Mobile Cooldown",type:"text",group:"privacy"},
 ];
 
 const GROUPS_LABEL = {personal:"Personal Information",employment:"Employment Details",membership:"LAAPOA Membership",privacy:"Directory & Privacy"};
