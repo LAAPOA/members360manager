@@ -258,7 +258,7 @@ const FIELDS = [
   {key:"department",label:"Department",type:"text",group:"employment",readonly:true},
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
-  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIC","Court Liaison","CTF","Dignitary Protection","ESU","Internal Affairs","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
+  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIIC/RTIC","Court Liaison","CTF","DPU","ESU","Internal Affairs","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
   {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
   {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
@@ -324,6 +324,14 @@ const IC = {
   bell: icon('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
 };
 
+function fmtPhone(p) {
+  if (!p) return '';
+  const digits = String(p).replace(/\D/g, '');
+  if (digits.length === 10) return '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
+  if (digits.length === 11 && digits[0] === '1') return '(' + digits.slice(1,4) + ') ' + digits.slice(4,7) + '-' + digits.slice(7);
+  return String(p);
+}
+
 // API
 // Get client IP (best effort)
 let _clientIp='unknown';
@@ -336,7 +344,7 @@ const DEMO_MEMBERS=[
   {id:"1",name:"John Martinez",dob:"1985-03-15",address:"123 Aviation Blvd",city:"El Segundo",state:"CA",zip:"90245",phone:"(310) 555-0101",email:"jmartinez@email.com",serialNumber:"12345",cid:"CID00101",hireDate:"2010-06-01",retirement:"LAFPP",department:"APD",rank:"Officer PII",mou:"MOU 30",assignment:"K9s",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2010-07-01",notes:""},
   {id:"2",name:"Sarah Chen",dob:"1990-08-22",address:"456 Sepulveda Blvd",city:"Manhattan Beach",state:"CA",zip:"90266",phone:"(310) 555-0102",email:"schen@email.com",serialNumber:"12890",cid:"CID00202",hireDate:"2015-01-15",retirement:"LACERS",department:"APD",rank:"Officer PII",mou:"MOU 30",assignment:"Motors",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2015-02-01",notes:""},
   {id:"3",name:"Robert Williams",dob:"1978-11-03",address:"789 Rosecrans Ave",city:"Hawthorne",state:"CA",zip:"90250",phone:"(310) 555-0103",email:"rwilliams@email.com",serialNumber:"10234",cid:"CID00303",hireDate:"2005-09-20",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"PSS Watch 3",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2005-10-01",notes:"Union steward"},
-  {id:"4",name:"Maria Lopez",dob:"1992-05-10",address:"321 Imperial Hwy",city:"Inglewood",state:"CA",zip:"90301",phone:"(310) 555-0104",email:"mlopez@email.com",serialNumber:"14567",cid:"CID00404",hireDate:"2018-03-12",retirement:"LACERS",department:"APD",rank:"Officer PIII",mou:"MOU 28",assignment:"APIC",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2018-04-01",notes:""},
+  {id:"4",name:"Maria Lopez",dob:"1992-05-10",address:"321 Imperial Hwy",city:"Inglewood",state:"CA",zip:"90301",phone:"(310) 555-0104",email:"mlopez@email.com",serialNumber:"14567",cid:"CID00404",hireDate:"2018-03-12",retirement:"LACERS",department:"APD",rank:"Officer PIII",mou:"MOU 28",assignment:"APIIC/RTIC",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2018-04-01",notes:""},
   {id:"5",name:"David Park",dob:"1988-01-28",address:"654 Crenshaw Blvd",city:"Torrance",state:"CA",zip:"90501",phone:"(310) 555-0105",email:"dpark@email.com",serialNumber:"11678",cid:"CID00505",hireDate:"2012-07-08",retirement:"LAFPP",department:"APD",rank:"Lieutenant",mou:"MOU 39",assignment:"Training",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2012-08-01",notes:""},
   {id:"6",name:"Angela Foster",dob:"1983-12-19",address:"987 Pacific Coast Hwy",city:"Redondo Beach",state:"CA",zip:"90277",phone:"(310) 555-0106",email:"afoster@email.com",serialNumber:"11234",cid:"CID00606",hireDate:"2008-04-30",retirement:"LAFPP",department:"APD",rank:"Specialist",mou:"MOU 30",assignment:"PSS Watch 2",memberStatus:"Active",lateralAgency:"",lateralDate:"",memberSince:"2008-05-15",notes:""},
   {id:"7",name:"Thomas Reed",dob:"1970-07-04",address:"147 Main St",city:"Lawndale",state:"CA",zip:"90260",phone:"(310) 555-0107",email:"treed@email.com",serialNumber:"08901",cid:"CID00707",hireDate:"1998-01-05",retirement:"LAFPP",department:"APD",rank:"Sergeant",mou:"MOU 39",assignment:"",memberStatus:"Retired",lateralAgency:"",lateralDate:"",memberSince:"1998-02-01",notes:"Retired 2025"},
@@ -402,10 +410,10 @@ function FI({field,value,onChange,formData,setMulti}){
             <option value="PSS Watch 3">PSS Watch 3</option>
           </optgroup>
           <optgroup label="Specialized Units">
-            <option value="APIC">APIC</option>
+            <option value="APIIC/RTIC">APIIC/RTIC</option>
             <option value="Court Liaison">Court Liaison</option>
             <option value="CTF">CTF</option>
-            <option value="Dignitary Protection">Dignitary Protection</option>
+            <option value="DPU">DPU</option>
             <option value="ESU">ESU</option>
             {mou==='MOU 39'&&<option value="Internal Affairs">Internal Affairs</option>}
             <option value="K9s">K9s</option>
@@ -744,7 +752,7 @@ function ContactCard({member,onClose,onEdit}){
       <div className="cc-section">
         <div className="cc-section-title">Contact</div>
         <div className="cc-row"><span className="cc-icon">{IC.mail}</span><span className="cc-label">Email</span><span className="cc-val">{m.email?<a href={`mailto:${m.email}`}>{m.email}</a>:'—'}</span></div>
-        <div className="cc-row"><span className="cc-icon">{IC.phone}</span><span className="cc-label">Phone</span><span className="cc-val">{m.phone?<a href={`tel:${m.phone}`}>{m.phone}</a>:'—'}</span></div>
+        <div className="cc-row"><span className="cc-icon">{IC.phone}</span><span className="cc-label">Phone</span><span className="cc-val">{m.phone?<a href={`tel:${m.phone}`}>{fmtPhone(m.phone)}</a>:'—'}</span></div>
         <div className="cc-row"><span className="cc-icon">{IC.mappin}</span><span className="cc-label">Address</span><span className="cc-val" style={{whiteSpace:"pre-line"}}>{[m.address,m.city&&m.state?m.city+', '+m.state+' '+m.zip:[m.city,m.state,m.zip].filter(Boolean).join(' ')].filter(Boolean).join('\n')||'—'}</span></div>
       </div>
       <div className="cc-section">
