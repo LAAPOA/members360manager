@@ -259,7 +259,7 @@ const FIELDS = [
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
   {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIIC/RTIC","Court Liaison","CTF","DPU","ESU","Internal Affairs","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
-  {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
+  {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Pending","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
   {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"memberSince",label:"Member Since",type:"date",group:"membership"},
