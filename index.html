@@ -258,7 +258,7 @@ const FIELDS = [
   {key:"department",label:"Department",type:"text",group:"employment",readonly:true},
   {key:"rank",label:"Rank",type:"rank_select",group:"employment"},
   {key:"mou",label:"MOU",type:"text",group:"employment",readonly:true},
-  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","APIIC/RTIC","Court Liaison","CTF","DPU","ESU","Internal Affairs","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
+  {key:"assignment",label:"Assignment",type:"select",options:["PSS Watch 1","PSS Watch 2","PSS Watch 3","VNY A-Watch","VNY B-Watch","APIIC/RTIC","Court Liaison","CTF","DPU","ESU","Internal Affairs","K9s","Motors","Range","Special Projects","Training","VAAU","My unit not listed","Daily Posts","Mayor's Post","MLO-CRO","MLO-Sgt Arms","Griffith / Metro RGN","Valley RGN","Observatory","H.R.S.T.","Harbor RGN"],group:"employment"},
   {key:"memberStatus",label:"Member Status",type:"select",options:["Active","Pending","Retired","Inactive","Probationary","Terminated","Lateral"],group:"membership"},
   {key:"lateralAgency",label:"Lateral Agency",type:"text",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
   {key:"lateralDate",label:"Lateral Date",type:"date",group:"membership",conditional:"memberStatus",conditionalValue:"Lateral"},
@@ -404,10 +404,14 @@ function FI({field,value,onChange,formData,setMulti}){
       // Clear assignment if switching MOUs and current value doesn't belong
       return<div className="fd"><label>{field.label}</label><select value={value||""} onChange={ev=>{setMulti({assignment:ev.target.value});}}><option value="">— Select —</option>
         {(mou==='MOU 30'||mou==='MOU 39')&&<>
-          <optgroup label="PSS">
+          <optgroup label="LAX PSS">
             <option value="PSS Watch 1">PSS Watch 1</option>
             <option value="PSS Watch 2">PSS Watch 2</option>
             <option value="PSS Watch 3">PSS Watch 3</option>
+          </optgroup>
+          <optgroup label="VNY PSS">
+            <option value="VNY A-Watch">VNY A-Watch</option>
+            <option value="VNY B-Watch">VNY B-Watch</option>
           </optgroup>
           <optgroup label="Specialized Units">
             <option value="APIIC/RTIC">APIIC/RTIC</option>
