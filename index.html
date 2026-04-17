@@ -875,17 +875,28 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const[editId,setEditId]=useState(null);
   const[title,setTitle]=useState('');
   const[saving,setSaving]=useState(false);
+  const[orderedItems,setOrderedItems]=useState([]);
+  const[dragIdx,setDragIdx]=useState(null);
   const bodyRef=React.useRef(null);
 
   const getBody=()=>bodyRef.current?bodyRef.current.innerHTML.trim():'';
   const setBodyHtml=(html)=>{if(bodyRef.current)bodyRef.current.innerHTML=html||'';};
-
   const execCmd=(cmd,val)=>{document.execCommand(cmd,false,val||null);if(bodyRef.current)bodyRef.current.focus();};
 
   const loadPosts=async()=>{
     setLoading(true);
     const res=await api(backendUrl,'getAnnouncements',{token:authToken});
-    if(res.ok)setPosts(res.posts||[]);
+    if(res.ok){
+      const p=res.posts||[];
+      setPosts(p);
+      // Build ordered list with birthday placeholder
+      const items=p.map(x=>({type:'post',id:String(x.id),data:x}));
+      const bdayPos=res.birthdayPosition!==undefined?Number(res.birthdayPosition):0;
+      const bday={type:'birthday',id:'BIRTHDAYS'};
+      if(bdayPos>=0&&bdayPos<=items.length)items.splice(bdayPos,0,bday);
+      else items.unshift(bday);
+      setOrderedItems(items);
+    }
     setLoading(false);
   };
   React.useEffect(()=>{loadPosts();},[]);
@@ -898,28 +909,34 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
     if(editId)payload.id=editId;
     const res=await api(backendUrl,'saveAnnouncement',payload);
     setSaving(false);
-    if(res.ok){
-      flash('Announcement '+(res.action||'saved'));
-      setTitle('');setBodyHtml('');setEditId(null);
-      loadPosts();
-    }else{flash('Error: '+(res.error||'save failed'));}
+    if(res.ok){flash('Announcement '+(res.action||'saved'));setTitle('');setBodyHtml('');setEditId(null);loadPosts();}
+    else{flash('Error: '+(res.error||'save failed'));}
   };
-
   const handleDelete=async(id)=>{
     if(!confirm('Delete this announcement?'))return;
     const res=await api(backendUrl,'deleteAnnouncement',{token:authToken,id});
     if(res.ok){flash('Announcement deleted');loadPosts();}
   };
-
   const startEdit=(p)=>{setEditId(p.id);setTitle(p.title);setTimeout(()=>setBodyHtml(p.body),50);};
   const cancelEdit=()=>{setEditId(null);setTitle('');setBodyHtml('');};
+  const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
-  const insertLink=()=>{
-    const url=prompt('Enter URL:','https://');
-    if(url)execCmd('createLink',url);
+  const saveOrder=async(items)=>{
+    const order=items.map(i=>i.id);
+    await api(backendUrl,'saveAnnouncementOrder',{token:authToken,order});
+    flash('Order saved');
+  };
+
+  const moveItem=(fromIdx,toIdx)=>{
+    const items=[...orderedItems];
+    const[moved]=items.splice(fromIdx,1);
+    items.splice(toIdx,0,moved);
+    setOrderedItems(items);
+    saveOrder(items);
   };
 
   const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center'};
+  const gripStyle={cursor:'grab',padding:'8px 4px',color:'var(--text-muted)',fontSize:16,userSelect:'none',touchAction:'none'};
 
   return(<div className="confirm-overlay" onClick={onClose}><div className="panel" onClick={ev=>ev.stopPropagation()}>
     <div className="ph"><h2>Announcements</h2><button onClick={onClose}>{IC.x}</button></div>
@@ -937,19 +954,10 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('insertOrderedList')}>1.</button>
           <span style={{width:1,background:'var(--border)',margin:'2px 4px'}}/>
           <select style={{background:'var(--navy)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'3px 4px',fontSize:11,fontFamily:'inherit'}} onChange={e=>{if(e.target.value)execCmd('formatBlock','<'+e.target.value+'>');else execCmd('formatBlock','<P>');}} defaultValue="">
-            <option value="">Normal</option>
-            <option value="H2">Heading</option>
-            <option value="H3">Subheading</option>
+            <option value="">Normal</option><option value="H2">Heading</option><option value="H3">Subheading</option>
           </select>
           <select style={{background:'var(--navy)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'3px 4px',fontSize:11,fontFamily:'inherit'}} onChange={e=>{if(e.target.value)execCmd('foreColor',e.target.value);e.target.selectedIndex=0;}} defaultValue="">
-            <option value="">Color</option>
-            <option value="#E8E8EC">White</option>
-            <option value="#C6973F">Gold</option>
-            <option value="#C0392B">Red</option>
-            <option value="#27AE60">Green</option>
-            <option value="#3498DB">Blue</option>
-            <option value="#E67E22">Orange</option>
-            <option value="#9B59B6">Purple</option>
+            <option value="">Color</option><option value="#E8E8EC">White</option><option value="#C6973F">Gold</option><option value="#C0392B">Red</option><option value="#27AE60">Green</option><option value="#3498DB">Blue</option><option value="#E67E22">Orange</option><option value="#9B59B6">Purple</option>
           </select>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertLink}>{"\ud83d\udd17"}</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('removeFormat')}>{"\u2715"}</button>
@@ -960,19 +968,42 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
           {editId&&<button className="btn btn-outline" onClick={cancelEdit}>Cancel</button>}
         </div>
       </div>
+      <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>Drag items to reorder. Changes save automatically.</div>
       {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
-       posts.length===0?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>No announcements yet</div>:
-       posts.map(p=><div key={p.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
-         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-           <span style={{fontSize:11,color:'var(--text-muted)'}}>{p.timestamp} {p.postedBy?(' \u00b7 '+p.postedBy):''}</span>
-           <span style={{display:'flex',gap:6}}>
-             <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>startEdit(p)}>Edit</button>
-             <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(p.id)}>Delete</button>
-           </span>
-         </div>
-         <div style={{fontSize:15,fontWeight:600,marginBottom:4,color:'var(--gold)'}}>{p.title}</div>
-         <div style={{fontSize:13,color:'var(--text-dim)',lineHeight:1.6}} dangerouslySetInnerHTML={{__html:p.body}}/>
-       </div>)
+       orderedItems.length===0?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>No announcements yet</div>:
+       orderedItems.map((item,idx)=>{
+         if(item.type==='birthday'){
+           return <div key="BIRTHDAYS" style={{padding:14,marginBottom:8,background:'linear-gradient(135deg,#1a1040,var(--navy))',border:'2px dashed var(--gold)',borderRadius:8,display:'flex',alignItems:'center',gap:10}}>
+             <div style={{display:'flex',flexDirection:'column',gap:2}}>
+               <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
+               <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx<orderedItems.length-1&&moveItem(idx,idx+1)}>{"\u25bc"}</button>
+             </div>
+             <div style={{flex:1,textAlign:'center'}}>
+               <div style={{fontSize:16}}>&#x1f382;</div>
+               <div style={{fontSize:14,fontWeight:600,color:'var(--gold)'}}>Birthday Celebrations</div>
+               <div style={{fontSize:11,color:'var(--text-muted)'}}>Shows daily 04:30-14:30</div>
+             </div>
+           </div>;
+         }
+         const p=item.data;
+         return <div key={item.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8,display:'flex',alignItems:'flex-start',gap:10}}>
+           <div style={{display:'flex',flexDirection:'column',gap:2,paddingTop:4}}>
+             <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
+             <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx<orderedItems.length-1&&moveItem(idx,idx+1)}>{"\u25bc"}</button>
+           </div>
+           <div style={{flex:1}}>
+             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+               <span style={{fontSize:11,color:'var(--text-muted)'}}>{p.timestamp} {p.postedBy?('\u00b7 '+p.postedBy):''}</span>
+               <span style={{display:'flex',gap:6}}>
+                 <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>startEdit(p)}>Edit</button>
+                 <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(p.id)}>Delete</button>
+               </span>
+             </div>
+             <div style={{fontSize:15,fontWeight:600,marginBottom:4,color:'var(--gold)'}}>{p.title}</div>
+             <div style={{fontSize:13,color:'var(--text-dim)',lineHeight:1.6}} dangerouslySetInnerHTML={{__html:p.body}}/>
+           </div>
+         </div>;
+       })
       }
     </div>
     <div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div>
