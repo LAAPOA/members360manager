@@ -869,6 +869,26 @@ function NotificationPanel({onClose,backendUrl,authToken,flash}){
   </div></div>);
 }
 
+function AdminAnnItem({p,idx,total,onMove,onEdit,onDelete}){
+  const[menuOpen,setMenuOpen]=useState(false);
+  return <div style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8,display:'flex',alignItems:'flex-start',gap:10,position:'relative'}}>
+    <div style={{display:'flex',flexDirection:'column',gap:2,paddingTop:4}}>
+      <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&onMove(idx,idx-1)}>{"\u25b2"}</button>
+      <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx<total-1&&onMove(idx,idx+1)}>{"\u25bc"}</button>
+    </div>
+    <div style={{flex:1}}>
+      <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:6}}>{p.timestamp} {p.postedBy?('\u00b7 '+p.postedBy):''}</div>
+      <div style={{fontSize:15,fontWeight:600,marginBottom:4,color:'var(--gold)'}}>{p.title}</div>
+      <div style={{fontSize:13,color:'var(--text-dim)',lineHeight:1.6}} dangerouslySetInnerHTML={{__html:p.body}}/>
+    </div>
+    <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:18,padding:'4px 8px',lineHeight:1,position:'absolute',top:8,right:8}} onClick={()=>setMenuOpen(!menuOpen)}>{"\u22ee"}</button>
+    {menuOpen&&<div style={{position:'absolute',top:32,right:8,background:'var(--surface-raised)',border:'1px solid var(--border-bright)',borderRadius:8,padding:4,zIndex:10,display:'flex',flexDirection:'column',gap:2,minWidth:100,boxShadow:'0 4px 16px rgba(0,0,0,.4)'}}>
+      <button style={{background:'none',border:'none',color:'var(--text)',fontSize:13,padding:'8px 12px',textAlign:'left',cursor:'pointer',fontFamily:'inherit',borderRadius:4}} onClick={()=>{setMenuOpen(false);onEdit(p);}}>Edit</button>
+      <button style={{background:'none',border:'none',color:'var(--red)',fontSize:13,padding:'8px 12px',textAlign:'left',cursor:'pointer',fontFamily:'inherit',borderRadius:4}} onClick={()=>{setMenuOpen(false);onDelete(p.id);}}>Delete</button>
+    </div>}
+  </div>;
+}
+
 function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const[posts,setPosts]=useState([]);
   const[loading,setLoading]=useState(true);
@@ -986,23 +1006,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
            </div>;
          }
          const p=item.data;
-         return <div key={item.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8,display:'flex',alignItems:'flex-start',gap:10}}>
-           <div style={{display:'flex',flexDirection:'column',gap:2,paddingTop:4}}>
-             <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
-             <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx<orderedItems.length-1&&moveItem(idx,idx+1)}>{"\u25bc"}</button>
-           </div>
-           <div style={{flex:1}}>
-             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-               <span style={{fontSize:11,color:'var(--text-muted)'}}>{p.timestamp} {p.postedBy?('\u00b7 '+p.postedBy):''}</span>
-               <span style={{display:'flex',gap:6}}>
-                 <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>startEdit(p)}>Edit</button>
-                 <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(p.id)}>Delete</button>
-               </span>
-             </div>
-             <div style={{fontSize:15,fontWeight:600,marginBottom:4,color:'var(--gold)'}}>{p.title}</div>
-             <div style={{fontSize:13,color:'var(--text-dim)',lineHeight:1.6}} dangerouslySetInnerHTML={{__html:p.body}}/>
-           </div>
-         </div>;
+         return <AdminAnnItem key={item.id} p={p} idx={idx} total={orderedItems.length} onMove={moveItem} onEdit={startEdit} onDelete={handleDelete}/>;
        })
       }
     </div>
