@@ -869,6 +869,76 @@ function NotificationPanel({onClose,backendUrl,authToken,flash}){
   </div></div>);
 }
 
+function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
+  const[posts,setPosts]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[editId,setEditId]=useState(null);
+  const[title,setTitle]=useState('');
+  const[body,setBody]=useState('');
+  const[saving,setSaving]=useState(false);
+
+  const loadPosts=async()=>{
+    setLoading(true);
+    const res=await api(backendUrl,'getAnnouncements',{token:authToken});
+    if(res.ok)setPosts(res.posts||[]);
+    setLoading(false);
+  };
+  React.useEffect(()=>{loadPosts();},[]);
+
+  const handleSave=async()=>{
+    if(!title.trim()||!body.trim())return;
+    setSaving(true);
+    const payload={token:authToken,title:title.trim(),body:body.trim()};
+    if(editId)payload.id=editId;
+    const res=await api(backendUrl,'saveAnnouncement',payload);
+    setSaving(false);
+    if(res.ok){
+      flash('Announcement '+(res.action||'saved'));
+      setTitle('');setBody('');setEditId(null);
+      loadPosts();
+    }else{flash('Error: '+(res.error||'save failed'));}
+  };
+
+  const handleDelete=async(id)=>{
+    if(!confirm('Delete this announcement?'))return;
+    const res=await api(backendUrl,'deleteAnnouncement',{token:authToken,id});
+    if(res.ok){flash('Announcement deleted');loadPosts();}
+  };
+
+  const startEdit=(p)=>{setEditId(p.id);setTitle(p.title);setBody(p.body);};
+  const cancelEdit=()=>{setEditId(null);setTitle('');setBody('');};
+
+  return(<div className="confirm-overlay" onClick={onClose}><div className="panel" onClick={ev=>ev.stopPropagation()}>
+    <div className="ph"><h2>Announcements</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb">
+      <div style={{marginBottom:20,padding:16,background:'var(--surface-raised)',borderRadius:8,border:'1px solid var(--border)'}}>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{editId?'Edit Announcement':'New Announcement'}</div>
+        <input type="text" value={title} onChange={ev=>setTitle(ev.target.value)} placeholder="Title" style={{width:'100%',marginBottom:8,padding:'8px 12px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:14,fontFamily:'inherit',boxSizing:'border-box'}}/>
+        <textarea value={body} onChange={ev=>setBody(ev.target.value)} placeholder="Announcement body..." rows={4} style={{width:'100%',marginBottom:8,padding:'8px 12px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:14,fontFamily:'inherit',resize:'vertical',boxSizing:'border-box'}}/>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn btn-gold" onClick={handleSave} disabled={saving}>{saving?'Saving...':(editId?'Update':'Post')}</button>
+          {editId&&<button className="btn btn-outline" onClick={cancelEdit}>Cancel</button>}
+        </div>
+      </div>
+      {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
+       posts.length===0?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>No announcements yet</div>:
+       posts.map(p=><div key={p.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
+         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+           <span style={{fontSize:11,color:'var(--text-muted)'}}>{p.timestamp} {p.postedBy?(' \u00b7 '+p.postedBy):''}</span>
+           <span style={{display:'flex',gap:6}}>
+             <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>startEdit(p)}>Edit</button>
+             <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(p.id)}>Delete</button>
+           </span>
+         </div>
+         <div style={{fontSize:15,fontWeight:600,marginBottom:4,color:'var(--gold)'}}>{p.title}</div>
+         <div style={{fontSize:13,color:'var(--text-dim)',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.body}</div>
+       </div>)
+      }
+    </div>
+    <div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div>
+  </div></div>);
+}
+
 function App(){
   // Restore session from localStorage
   const stored=useMemo(()=>{try{const s=localStorage.getItem('laapoa_session');return s?JSON.parse(s):null;}catch(e){return null;}},[]);
@@ -922,6 +992,7 @@ function App(){
         <button className="nav-item" onClick={()=>{setPanel("email");setMobileMenu(false);}}>{IC.mail} Compose Email</button>
         <button className="nav-item" onClick={()=>{setPanel("import");setMobileMenu(false);}}>{IC.upload} Import CSV</button>
         <button className="nav-item" onClick={()=>{setPanel("notifications");setMobileMenu(false);}}>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</button>
+        <button className="nav-item" onClick={()=>{setPanel("announcements");setMobileMenu(false);}}>{IC.edit} Announcements</button>
         <div className="nav-section">Groups</div>
         {groups.map(g=><button key={g.id} className="nav-item" onClick={()=>{setFilters(g.filters);setPanel(null);setMobileMenu(false);}}><span className="dot" style={{background:g.color}}/>{g.name}<span className="cnt">{resolveGroup(g,members).length}</span></button>)}
         <button className="nav-item" onClick={()=>{setPanel("groups");setMobileMenu(false);}}>{IC.plus} Manage Groups</button>
@@ -971,6 +1042,7 @@ function App(){
     {panel==="config"&&<ConfigPanel scriptUrl={backendUrl} setScriptUrl={setBackendUrl} onClose={()=>setPanel(null)}/>}
     {panel==="import"&&<ImportPanel onClose={()=>setPanel(null)} onImport={handleImport} existingMembers={members}/>}
     {panel==="notifications"&&<NotificationPanel onClose={()=>{setPanel(null);loadUnread(backendUrl,authToken);}} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
+    {panel==="announcements"&&<AnnouncementsPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {importAlerts&&<div className="confirm-overlay" onClick={()=>{setImportAlerts(null);setPanel(null);}}><div className="panel" onClick={ev=>ev.stopPropagation()}>
       <div className="ph"><h2 style={{color:'#E67E22'}}>Import Alerts — Significant Changes Detected</h2><button onClick={()=>{setImportAlerts(null);setPanel(null);}}>{IC.x}</button></div>
       <div className="pb">
