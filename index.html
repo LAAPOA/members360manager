@@ -897,6 +897,8 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const[saving,setSaving]=useState(false);
   const[orderedItems,setOrderedItems]=useState([]);
   const[dragIdx,setDragIdx]=useState(null);
+  const[videoUrl,setVideoUrl]=useState('');
+  const[videoEnabled,setVideoEnabled]=useState(false);
   const bodyRef=React.useRef(null);
 
   const getBody=()=>bodyRef.current?bodyRef.current.innerHTML.trim():'';
@@ -909,12 +911,24 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
     if(res.ok){
       const p=res.posts||[];
       setPosts(p);
-      // Build ordered list with birthday placeholder
+      setVideoUrl(res.videoUrl||'');
+      setVideoEnabled(res.videoEnabled||false);
+      // Build ordered list with birthday and video placeholders
       const items=p.map(x=>({type:'post',id:String(x.id),data:x}));
       const bdayPos=res.birthdayPosition!==undefined?Number(res.birthdayPosition):0;
+      const vidPos=res.videoPosition!==undefined?Number(res.videoPosition):-1;
       const bday={type:'birthday',id:'BIRTHDAYS'};
-      if(bdayPos>=0&&bdayPos<=items.length)items.splice(bdayPos,0,bday);
-      else items.unshift(bday);
+      const video={type:'video',id:'VIDEO'};
+      // Insert in correct order - higher index first to avoid shifting
+      const inserts=[];
+      inserts.push({pos:bdayPos,item:bday});
+      if(vidPos>=0) inserts.push({pos:vidPos,item:video});
+      else items.push(video); // default to end if no position
+      inserts.sort(function(a,b){return b.pos-a.pos;});
+      inserts.forEach(function(ins){
+        if(ins.pos>=0&&ins.pos<=items.length)items.splice(ins.pos,0,ins.item);
+        else items.push(ins.item);
+      });
       setOrderedItems(items);
     }
     setLoading(false);
@@ -941,9 +955,9 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const cancelEdit=()=>{setEditId(null);setTitle('');setBodyHtml('');};
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
-  const saveOrder=async(items)=>{
+  const saveOrder=async(items,vUrl,vEnabled)=>{
     const order=items.map(i=>i.id);
-    await api(backendUrl,'saveAnnouncementOrder',{token:authToken,order});
+    await api(backendUrl,'saveAnnouncementOrder',{token:authToken,order,videoUrl:vUrl!==undefined?vUrl:videoUrl,videoEnabled:vEnabled!==undefined?vEnabled:videoEnabled});
     flash('Order saved');
   };
 
@@ -1002,6 +1016,28 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
                <div style={{fontSize:16}}>&#x1f382;</div>
                <div style={{fontSize:14,fontWeight:600,color:'var(--gold)'}}>Birthday Celebrations</div>
                <div style={{fontSize:11,color:'var(--text-muted)'}}>Shows daily 04:30-14:30</div>
+             </div>
+           </div>;
+         }
+         if(item.type==='video'){
+           return <div key="VIDEO" style={{padding:14,marginBottom:8,background:'linear-gradient(135deg,#0a1628,var(--navy))',border:'2px dashed #C0392B',borderRadius:8,display:'flex',alignItems:'center',gap:10}}>
+             <div style={{display:'flex',flexDirection:'column',gap:2}}>
+               <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
+               <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx<orderedItems.length-1&&moveItem(idx,idx+1)}>{"\u25bc"}</button>
+             </div>
+             <div style={{flex:1}}>
+               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                 <span style={{fontSize:16}}>{"\u25b6\ufe0f"}</span>
+                 <span style={{fontSize:14,fontWeight:600,color:'#C0392B'}}>YouTube / Livestream</span>
+                 <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
+                   <span style={{fontSize:11,color:'var(--text-muted)'}}>{videoEnabled?'ON':'OFF'}</span>
+                   <div onClick={()=>{const nv=!videoEnabled;setVideoEnabled(nv);saveOrder(orderedItems,videoUrl,nv);}} style={{width:36,height:20,borderRadius:10,background:videoEnabled?'#27AE60':'var(--surface-raised)',border:'1px solid var(--border)',position:'relative',cursor:'pointer',transition:'all .2s',flexShrink:0}}>
+                     <div style={{width:16,height:16,borderRadius:'50%',background:'white',position:'absolute',top:1,left:videoEnabled?18:1,transition:'all .2s'}}/>
+                   </div>
+                 </div>
+               </div>
+               <input type="text" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} onBlur={()=>saveOrder(orderedItems,videoUrl,videoEnabled)} placeholder="YouTube URL or livestream link" style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,fontFamily:'inherit',boxSizing:'border-box'}}/>
+               {videoUrl&&<div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Members will see an embedded video player</div>}
              </div>
            </div>;
          }
