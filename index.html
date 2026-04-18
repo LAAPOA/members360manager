@@ -956,8 +956,11 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
   const saveOrder=async(items,vUrl,vEnabled)=>{
-    const order=items.map(i=>i.id);
-    await api(backendUrl,'saveAnnouncementOrder',{token:authToken,order,videoUrl:vUrl!==undefined?vUrl:videoUrl,videoEnabled:vEnabled!==undefined?vEnabled:videoEnabled});
+    const order=items.map(i=>String(i.id));
+    const payload={token:authToken,order:order};
+    if(vUrl!==undefined)payload.videoUrl=vUrl;
+    if(vEnabled!==undefined)payload.videoEnabled=vEnabled;
+    await api(backendUrl,'saveAnnouncementOrder',payload);
     flash('Order saved');
   };
 
@@ -966,7 +969,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
     const[moved]=items.splice(fromIdx,1);
     items.splice(toIdx,0,moved);
     setOrderedItems(items);
-    saveOrder(items);
+    saveOrder(items,undefined,undefined);
   };
 
   const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center'};
