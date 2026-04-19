@@ -870,6 +870,179 @@ function NotificationPanel({onClose,backendUrl,authToken,flash}){
   </div></div>);
 }
 
+function EventsPanel({onClose,backendUrl,authToken,flash}){
+  const[giveaways,setGiveaways]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[title,setTitle]=useState('');
+  const[saving,setSaving]=useState(false);
+  const[spinGiveaway,setSpinGiveaway]=useState(null);
+  const descRef=React.useRef(null);
+
+  const getDesc=()=>descRef.current?descRef.current.innerHTML.trim():'';
+  const setDescHtml=(html)=>{if(descRef.current)descRef.current.innerHTML=html||'';};
+  const execCmd=(cmd,val)=>{document.execCommand(cmd,false,val||null);if(descRef.current)descRef.current.focus();};
+
+  const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center',flexShrink:0};
+  const selStyle={background:'var(--navy)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'3px 4px',fontSize:11,fontFamily:'inherit',flexShrink:0};
+  const sepStyle={width:1,background:'var(--border)',margin:'2px 4px',flexShrink:0};
+
+  const loadGiveaways=async()=>{setLoading(true);const res=await api(backendUrl,'adminGetGiveaways',{token:authToken});if(res.ok)setGiveaways(res.giveaways||[]);setLoading(false);};
+  React.useEffect(()=>{loadGiveaways();},[]);
+
+  const handleCreate=async()=>{
+    const d=getDesc();if(!title.trim())return;setSaving(true);
+    const res=await api(backendUrl,'createGiveaway',{token:authToken,title:title.trim(),description:d});
+    setSaving(false);if(res.ok){flash('Giveaway created');setTitle('');setDescHtml('');loadGiveaways();}
+  };
+
+  const handleDelete=async(id)=>{if(!confirm('Delete this giveaway?'))return;await api(backendUrl,'deleteGiveaway',{token:authToken,giveawayId:id});flash('Deleted');loadGiveaways();};
+
+  const handleSpin=(g)=>{
+    var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
+    if(entries.length<2){flash('Need at least 2 entries to spin');return;}
+    setSpinGiveaway({...g,parsedEntries:entries});
+  };
+
+  const handleWinner=async(g,winner)=>{
+    await api(backendUrl,'closeGiveaway',{token:authToken,giveawayId:g.id,winnerName:winner.rank+' '+winner.name,winnerCid:winner.cid});
+    flash(winner.rank+' '+winner.name+' wins!');
+    setSpinGiveaway(null);loadGiveaways();
+  };
+
+  if(spinGiveaway){
+    return <SpinWheel giveaway={spinGiveaway} onClose={()=>setSpinGiveaway(null)} onWinner={(w)=>handleWinner(spinGiveaway,w)}/>;
+  }
+
+  const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
+  const insertImage=()=>{const url=prompt('Image URL:','https://');if(url){document.execCommand('insertHTML',false,'<img src="'+url+'" style="max-width:100%;border-radius:6px;margin:8px 0">');}if(descRef.current)descRef.current.focus();};
+  const insertHR=()=>{document.execCommand('insertHTML',false,'<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');if(descRef.current)descRef.current.focus();};
+
+  return(<div className="confirm-overlay" onClick={onClose}><div className="panel" onClick={ev=>ev.stopPropagation()}>
+    <div className="ph"><h2>Events / Giveaways</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb">
+      <div style={{marginBottom:20,padding:16,background:'var(--surface-raised)',borderRadius:8,border:'1px solid var(--border)'}}>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>New Giveaway</div>
+        <input type="text" value={title} onChange={ev=>setTitle(ev.target.value)} placeholder="Title (e.g. Dodgers Tickets)" style={{width:'100%',marginBottom:8,padding:'8px 12px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:14,fontFamily:'inherit',boxSizing:'border-box'}}/>
+        <div className="ann-toolbar" style={{display:'flex',gap:2,padding:6,background:'var(--navy)',border:'1px solid var(--border)',borderBottom:'none',borderRadius:'6px 6px 0 0',overflowX:'auto',overflowY:'hidden',WebkitOverflowScrolling:'touch',flexWrap:'nowrap',scrollbarWidth:'none'}}>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('undo')} title="Undo">{"\u21a9"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('redo')} title="Redo">{"\u21aa"}</button>
+          <span style={sepStyle}/>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('bold')}><strong>B</strong></button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('italic')}><em>I</em></button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('underline')}><u>U</u></button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('strikeThrough')}><s>S</s></button>
+          <span style={sepStyle}/>
+          <select style={selStyle} onChange={e=>{if(e.target.value)execCmd('fontSize',e.target.value);e.target.selectedIndex=0;}} defaultValue=""><option value="">Size</option><option value="1">Small</option><option value="3">Normal</option><option value="4">Medium</option><option value="5">Large</option><option value="6">X-Large</option><option value="7">Huge</option></select>
+          <select style={selStyle} onChange={e=>{if(e.target.value)execCmd('formatBlock','<'+e.target.value+'>');else execCmd('formatBlock','<P>');}} defaultValue=""><option value="">Normal</option><option value="H2">Heading</option><option value="H3">Subheading</option></select>
+          <span style={sepStyle}/>
+          <select style={selStyle} onChange={e=>{if(e.target.value)execCmd('foreColor',e.target.value);e.target.selectedIndex=0;}} defaultValue=""><option value="">Color</option><option value="#E8E8EC">White</option><option value="#C6973F">Gold</option><option value="#C0392B">Red</option><option value="#27AE60">Green</option><option value="#3498DB">Blue</option><option value="#E67E22">Orange</option><option value="#9B59B6">Purple</option></select>
+          <select style={selStyle} onChange={e=>{if(e.target.value)execCmd('hiliteColor',e.target.value);e.target.selectedIndex=0;}} defaultValue=""><option value="">Highlight</option><option value="#C6973F">Gold</option><option value="#C0392B">Red</option><option value="#27AE60">Green</option><option value="#3498DB">Blue</option><option value="#E67E22">Orange</option><option value="#9B59B6">Purple</option><option value="#555555">Gray</option></select>
+          <span style={sepStyle}/>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('justifyLeft')}>{"\u2261"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('justifyCenter')}>{"\u2263"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('justifyRight')}>{"\u2262"}</button>
+          <span style={sepStyle}/>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('insertUnorderedList')}>{"\u2022"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('insertOrderedList')}>1.</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('indent')}>{"\u21e5"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('outdent')}>{"\u21e4"}</button>
+          <span style={sepStyle}/>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertLink}>{"\ud83d\udd17"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertImage}>{"\ud83d\uddbc"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertHR}>&mdash;</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('removeFormat')}>{"\u2715"}</button>
+        </div>
+        <div ref={descRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:12,color:'var(--text)',fontSize:14,fontFamily:'inherit',minHeight:80,maxHeight:200,overflowY:'auto',outline:'none',lineHeight:1.6,marginBottom:8}} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
+        <button className="btn btn-gold" onClick={handleCreate} disabled={saving}>{saving?'Creating...':'Create Giveaway'}</button>
+      </div>
+      {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
+       giveaways.length===0?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>No giveaways yet</div>:
+       giveaways.map(g=>{
+         var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
+         var isClosed=g.status==='closed';
+         return <div key={g.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
+           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+             <span style={{fontSize:15,fontWeight:600,color:isClosed?'var(--text-muted)':'var(--gold)'}}>{g.title}</span>
+             <span style={{display:'flex',gap:6}}>
+               {!isClosed&&<button style={{fontSize:11,padding:'3px 8px',background:'var(--gold)',border:'none',borderRadius:4,color:'var(--navy)',cursor:'pointer',fontFamily:'inherit',fontWeight:600}} onClick={()=>handleSpin(g)}>Spin</button>}
+               <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(g.id)}>Delete</button>
+             </span>
+           </div>
+           {g.description&&<div style={{fontSize:13,color:'var(--text-dim)',marginBottom:6,lineHeight:1.5}} dangerouslySetInnerHTML={{__html:g.description}}/>}
+           <div style={{fontSize:12,color:'var(--text-muted)'}}>{entries.length} {entries.length===1?'entry':'entries'}{isClosed?' \u00b7 Winner: '+(g.winnerName||'none'):''}</div>
+           {entries.length>0&&<div style={{marginTop:8,maxHeight:150,overflowY:'auto',fontSize:12,color:'var(--text-dim)'}}>
+             {entries.map((e,i)=><div key={i} style={{padding:'3px 0',borderBottom:'1px solid var(--border)'}}>{e.num}. {e.rank} {e.name}</div>)}
+           </div>}
+         </div>;
+       })
+      }
+    </div>
+    <div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div>
+  </div></div>);
+}
+
+function SpinWheel({giveaway,onClose,onWinner}){
+  const canvasRef=React.useRef(null);
+  const confRef=React.useRef(null);
+  const[spinning,setSpinning]=useState(false);
+  const[winner,setWinner]=useState(null);
+  const entries=giveaway.parsedEntries;
+  const colors=['#C6973F','#185FA5','#993C1D','#0F6E56','#534AB7','#993556','#854F0B','#3B6D11','#A32D2D','#085041','#3C3489','#72243E'];
+
+  const shuffleArr=(a)=>{var b=a.slice();for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;};
+  const wheelOrderRef=React.useRef(shuffleArr(entries));
+  const angleRef=React.useRef(0);
+
+  const drawWheel=()=>{
+    var cv=canvasRef.current;if(!cv)return;var ctx=cv.getContext('2d');
+    var wo=wheelOrderRef.current,n=wo.length,arc=Math.PI*2/n,a=angleRef.current;
+    ctx.clearRect(0,0,600,600);
+    for(var i=0;i<n;i++){var sa=a+i*arc;ctx.beginPath();ctx.moveTo(300,300);ctx.arc(300,300,280,sa,sa+arc);ctx.closePath();ctx.fillStyle=colors[(wo[i].num-1)%colors.length];ctx.fill();ctx.strokeStyle='#0B1A33';ctx.lineWidth=2;ctx.stroke();ctx.save();ctx.translate(300,300);ctx.rotate(sa+arc/2);ctx.fillStyle='#E8E8EC';ctx.font='500 26px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(wo[i].num,180,0);ctx.restore();}
+  };
+
+  React.useEffect(()=>{drawWheel();},[]);
+
+  const doSpin=()=>{
+    if(spinning)return;setSpinning(true);setWinner(null);
+    wheelOrderRef.current=shuffleArr(entries);drawWheel();
+    var total=Math.PI*2*(15+Math.random()*6),dur=15000,start=performance.now();
+    var easeOut=(t)=>{if(t<0.3)return t/0.3*0.5;var t2=(t-0.3)/0.7;return 0.5+0.5*(1-Math.pow(1-t2,5));};
+    var anim=(now)=>{var el=now-start,t=Math.min(el/dur,1);angleRef.current=easeOut(t)*total;drawWheel();
+      if(t<1){requestAnimationFrame(anim);}
+      else{setSpinning(false);var wo=wheelOrderRef.current,n=wo.length,arc=Math.PI*2/n;var pa=(Math.PI*1.5-angleRef.current)%(Math.PI*2);if(pa<0)pa+=Math.PI*2;var idx=Math.floor(pa/arc)%n;var w=wo[idx];setWinner(w);fireConf();}
+    };
+    requestAnimationFrame(anim);
+  };
+
+  const fireConf=()=>{
+    var cv=confRef.current;if(!cv)return;cv.width=300;cv.height=300;var ctx=cv.getContext('2d');
+    var ps=[];var cc=['#C6973F','#D4AD5E','#E8E8EC','#C0392B','#27AE60','#3498DB','#E67E22','#9B59B6'];
+    for(var i=0;i<120;i++){ps.push({x:150,y:150,vx:(Math.random()-.5)*10,vy:(Math.random()-1)*8-2,w:Math.random()*7+3,h:Math.random()*4+2,rot:Math.random()*360,vr:(Math.random()-.5)*12,color:cc[Math.floor(Math.random()*cc.length)],life:150+Math.random()*80,age:0});}
+    var go=()=>{ctx.clearRect(0,0,300,300);var alive=false;ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.rot+=p.vr;p.age++;if(p.age>p.life)return;alive=true;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);ctx.fillStyle=p.color;ctx.globalAlpha=Math.max(0,1-p.age/p.life);ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});ctx.globalAlpha=1;if(alive)requestAnimationFrame(go);else ctx.clearRect(0,0,300,300);};
+    go();setTimeout(()=>{for(var i=0;i<80;i++){ps.push({x:150,y:150,vx:(Math.random()-.5)*10,vy:(Math.random()-1)*8-2,w:Math.random()*7+3,h:Math.random()*4+2,rot:Math.random()*360,vr:(Math.random()-.5)*12,color:cc[Math.floor(Math.random()*cc.length)],life:150+Math.random()*80,age:0});}},800);
+  };
+
+  return(<div className="confirm-overlay"><div className="panel" onClick={ev=>ev.stopPropagation()}>
+    <div className="ph"><h2>{giveaway.title}</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb" style={{textAlign:'center'}}>
+      <div style={{position:'relative',width:300,height:300,margin:'0 auto 16px'}}>
+        <div style={{position:'absolute',top:-8,left:'50%',transform:'translateX(-50%)',width:0,height:0,borderLeft:'12px solid transparent',borderRight:'12px solid transparent',borderTop:'24px solid #C6973F',zIndex:2}}/>
+        <canvas ref={canvasRef} width={600} height={600} style={{width:300,height:300}}/>
+        <canvas ref={confRef} width={300} height={300} style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:10}}/>
+      </div>
+      {winner&&<div style={{fontSize:18,fontWeight:600,color:'var(--gold)',margin:'12px 0'}}>{"\ud83c\udfc6"} {winner.rank} {winner.name} wins! {"\ud83c\udfc6"}</div>}
+      <div style={{display:'flex',gap:8,justifyContent:'center',marginBottom:16}}>
+        {!winner&&<button className="btn btn-gold" onClick={doSpin} disabled={spinning} style={{padding:'12px 40px',fontSize:15}}>{spinning?'Spinning...':'SPIN THE WHEEL'}</button>}
+        {winner&&<button className="btn btn-gold" onClick={()=>onWinner(winner)} style={{padding:'12px 24px'}}>Confirm Winner</button>}
+        {winner&&<button className="btn btn-outline" onClick={()=>{setWinner(null);}} style={{padding:'12px 24px'}}>Spin Again</button>}
+      </div>
+      <div style={{maxHeight:200,overflowY:'auto',textAlign:'left',fontSize:12}}>
+        {entries.map((e,i)=><div key={i} style={{padding:'4px 8px',borderBottom:'1px solid var(--border)',color:winner&&winner.num===e.num?'var(--gold)':'var(--text-dim)',fontWeight:winner&&winner.num===e.num?600:400,background:winner&&winner.num===e.num?'rgba(198,151,63,.1)':'transparent'}}>{e.num}. {e.rank} {e.name}</div>)}
+      </div>
+    </div>
+  </div></div>);
+}
+
 function AdminAnnItem({p,idx,total,onMove,onEdit,onDelete}){
   const[menuOpen,setMenuOpen]=useState(false);
   return <div style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8,display:'flex',alignItems:'flex-start',gap:10,position:'relative'}}>
@@ -1131,6 +1304,7 @@ function App(){
         <button className="nav-item" onClick={()=>{setPanel("import");setMobileMenu(false);}}>{IC.upload} Import CSV</button>
         <button className="nav-item" onClick={()=>{setPanel("notifications");setMobileMenu(false);}}>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</button>
         <button className="nav-item" onClick={()=>{setPanel("announcements");setMobileMenu(false);}}>{IC.edit} Announcements</button>
+        <button className="nav-item" onClick={()=>{setPanel("events");setMobileMenu(false);}}>{IC.calendar} Events / Giveaways</button>
         <div className="nav-section">Groups</div>
         {groups.map(g=><button key={g.id} className="nav-item" onClick={()=>{setFilters(g.filters);setPanel(null);setMobileMenu(false);}}><span className="dot" style={{background:g.color}}/>{g.name}<span className="cnt">{resolveGroup(g,members).length}</span></button>)}
         <button className="nav-item" onClick={()=>{setPanel("groups");setMobileMenu(false);}}>{IC.plus} Manage Groups</button>
@@ -1181,6 +1355,7 @@ function App(){
     {panel==="import"&&<ImportPanel onClose={()=>setPanel(null)} onImport={handleImport} existingMembers={members}/>}
     {panel==="notifications"&&<NotificationPanel onClose={()=>{setPanel(null);loadUnread(backendUrl,authToken);}} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {panel==="announcements"&&<AnnouncementsPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
+    {panel==="events"&&<EventsPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {importAlerts&&<div className="confirm-overlay" onClick={()=>{setImportAlerts(null);setPanel(null);}}><div className="panel" onClick={ev=>ev.stopPropagation()}>
       <div className="ph"><h2 style={{color:'#E67E22'}}>Import Alerts — Significant Changes Detected</h2><button onClick={()=>{setImportAlerts(null);setPanel(null);}}>{IC.x}</button></div>
       <div className="pb">
