@@ -1064,43 +1064,28 @@ function SpinWheel({giveaway,onClose,onWinners}){
   const confRef=React.useRef(null);
   const[spinning,setSpinning]=useState(false);
   const[winners,setWinners]=useState([]);
-  const[currentRound,setCurrentRound]=useState(0);
+  const[activeNum,setActiveNum]=useState(-1);
+  const[centerText,setCenterText]=useState({num:'#',name:''});
   const entries=giveaway.parsedEntries;
   const numWinners=giveaway.numWinners||1;
   const colors=['#C6973F','#185FA5','#993C1D','#0F6E56','#534AB7','#993556','#854F0B','#3B6D11','#A32D2D','#085041','#3C3489','#72243E'];
-
   const shuffleArr=(a)=>{var b=a.slice();for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;};
   const wheelOrderRef=React.useRef(shuffleArr(entries));
   const angleRef=React.useRef(0);
   const remainingRef=React.useRef(entries.slice());
+  const winnersRef=React.useRef([]);
 
-  const drawWheel=(customEntries)=>{
+  const drawWheel=()=>{
     var cv=canvasRef.current;if(!cv)return;var ctx=cv.getContext('2d');
-    var wo=customEntries||wheelOrderRef.current,n=wo.length,arc=Math.PI*2/n,a=angleRef.current;
+    var wo=wheelOrderRef.current,n=wo.length;if(n===0)return;
+    var arc=Math.PI*2/n,a=angleRef.current;
     ctx.clearRect(0,0,600,600);
-    for(var i=0;i<n;i++){var sa=a+i*arc;ctx.beginPath();ctx.moveTo(300,300);ctx.arc(300,300,280,sa,sa+arc);ctx.closePath();ctx.fillStyle=colors[(wo[i].num-1)%colors.length];ctx.fill();ctx.strokeStyle='#0B1A33';ctx.lineWidth=2;ctx.stroke();ctx.save();ctx.translate(300,300);ctx.rotate(sa+arc/2);ctx.fillStyle='#E8E8EC';ctx.font='500 '+(n>20?'16':'26')+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(wo[i].num,180,0);ctx.restore();}
+    for(var i=0;i<n;i++){var sa=a+i*arc;ctx.beginPath();ctx.moveTo(300,300);ctx.arc(300,300,280,sa,sa+arc);ctx.closePath();ctx.fillStyle=colors[(wo[i].num-1)%colors.length];ctx.fill();ctx.strokeStyle='#0B1A33';ctx.lineWidth=2;ctx.stroke();ctx.save();ctx.translate(300,300);ctx.rotate(sa+arc/2);ctx.fillStyle='#E8E8EC';ctx.font='500 '+(n>16?'18':'26')+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(wo[i].num,n>16?150:180,0);ctx.restore();}
   };
+
+  const getCurrent=()=>{var wo=wheelOrderRef.current,n=wo.length;if(n===0)return null;var arc=Math.PI*2/n;var pa=(Math.PI*1.5-angleRef.current)%(Math.PI*2);if(pa<0)pa+=Math.PI*2;return wo[Math.floor(pa/arc)%n];};
 
   React.useEffect(()=>{drawWheel();},[]);
-
-  const doSpin=()=>{
-    if(spinning)return;setSpinning(true);
-    var remaining=remainingRef.current;
-    wheelOrderRef.current=shuffleArr(remaining);
-    angleRef.current=0;drawWheel();
-    var total=Math.PI*2*(15+Math.random()*6),dur=15000,start=performance.now();
-    var easeOut=(t)=>{if(t<0.3)return t/0.3*0.5;var t2=(t-0.3)/0.7;return 0.5+0.5*(1-Math.pow(1-t2,5));};
-    var anim=(now)=>{var el=now-start,t=Math.min(el/dur,1);angleRef.current=easeOut(t)*total;drawWheel();
-      if(t<1){requestAnimationFrame(anim);}
-      else{setSpinning(false);var wo=wheelOrderRef.current,n=wo.length,arc=Math.PI*2/n;var pa=(Math.PI*1.5-angleRef.current)%(Math.PI*2);if(pa<0)pa+=Math.PI*2;var widx=Math.floor(pa/arc)%n;var w=wo[widx];
-        var newWinners=[...winners,w];setWinners(newWinners);
-        remainingRef.current=remaining.filter(e=>e.cid!==w.cid);
-        setCurrentRound(newWinners.length);
-        fireConf();
-      }
-    };
-    requestAnimationFrame(anim);
-  };
 
   const fireConf=()=>{
     var cv=confRef.current;if(!cv)return;cv.width=300;cv.height=300;var ctx=cv.getContext('2d');
@@ -1110,29 +1095,52 @@ function SpinWheel({giveaway,onClose,onWinners}){
     go();setTimeout(()=>{for(var i=0;i<80;i++){ps.push({x:150,y:150,vx:(Math.random()-.5)*10,vy:(Math.random()-1)*8-2,w:Math.random()*7+3,h:Math.random()*4+2,rot:Math.random()*360,vr:(Math.random()-.5)*12,color:cc[Math.floor(Math.random()*cc.length)],life:150+Math.random()*80,age:0});}},800);
   };
 
+  const doSpin=()=>{
+    if(spinning)return;setSpinning(true);setActiveNum(-1);
+    var rem=remainingRef.current;
+    wheelOrderRef.current=shuffleArr(rem);
+    angleRef.current=0;drawWheel();
+    var lastNum=-1;
+    var total=Math.PI*2*(15+Math.random()*6),dur=15000,start=performance.now();
+    var ease=(t)=>{if(t<0.3)return t/0.3*0.5;var t2=(t-0.3)/0.7;return 0.5+0.5*(1-Math.pow(1-t2,5));};
+    var anim=(now)=>{var el=now-start,t=Math.min(el/dur,1);angleRef.current=ease(t)*total;drawWheel();
+      var cur=getCurrent();
+      if(cur&&cur.num!==lastNum){lastNum=cur.num;setCenterText({num:'#'+cur.num,name:cur.rank+' '+cur.name});setActiveNum(cur.num);}
+      if(t<1){requestAnimationFrame(anim);}
+      else{setSpinning(false);var w=getCurrent();
+        winnersRef.current=[...winnersRef.current,w];setWinners([...winnersRef.current]);
+        remainingRef.current=rem.filter(e=>e.cid!==w.cid);
+        setCenterText({num:'#'+w.num,name:w.rank+' '+w.name});setActiveNum(w.num);
+        fireConf();
+      }
+    };requestAnimationFrame(anim);
+  };
+
   var allPicked=winners.length>=numWinners;
 
   return(<div className="confirm-overlay"><div className="panel" onClick={ev=>ev.stopPropagation()}>
-    <div className="ph"><h2>{giveaway.title} {numWinners>1&&<span style={{fontSize:13,color:'var(--text-muted)'}}>(picking {numWinners} winners)</span>}</h2><button onClick={onClose}>{IC.x}</button></div>
-    <div className="pb" style={{textAlign:'center'}}>
-      {winners.length>0&&<div style={{marginBottom:12}}>
-        {winners.map((w,i)=><div key={i} style={{fontSize:16,fontWeight:600,color:'var(--gold)',margin:'4px 0'}}>{"\ud83c\udfc6"} Winner {numWinners>1?(i+1)+': ':''}{w.rank} {w.name}</div>)}
-      </div>}
+    <div className="ph"><h2>{giveaway.title}</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb">
+      {numWinners>1&&<div style={{textAlign:'center',fontSize:13,color:'var(--text-muted)',marginBottom:8}}>{allPicked?'All '+numWinners+' winners drawn!':'Drawing winner '+(winners.length+1)+' of '+numWinners}</div>}
+      {winners.length>0&&<div style={{textAlign:'center',marginBottom:12}}>{winners.map((w,i)=><div key={i} style={{fontSize:15,fontWeight:500,color:'var(--gold)',margin:'4px 0'}}>{"\ud83c\udfc6"} {numWinners>1?'Winner '+(i+1)+': ':''}{w.rank} {w.name}</div>)}</div>}
       {!allPicked&&<>
-        <div style={{position:'relative',width:300,height:300,margin:'0 auto 16px'}}>
+        <div style={{position:'relative',width:300,height:300,margin:'0 auto 8px'}}>
           <div style={{position:'absolute',top:-8,left:'50%',transform:'translateX(-50%)',width:0,height:0,borderLeft:'12px solid transparent',borderRight:'12px solid transparent',borderTop:'24px solid #C6973F',zIndex:2}}/>
           <canvas ref={canvasRef} width={600} height={600} style={{width:300,height:300}}/>
+          <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:70,height:70,borderRadius:'50%',background:'#0B1A33',border:'3px solid #C6973F',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2,overflow:'hidden',padding:4}}>
+            <div style={{fontSize:16,color:'var(--gold)',fontWeight:500}}>{centerText.num}</div>
+            <div style={{fontSize:9,color:'var(--gold)',textAlign:'center',lineHeight:1.1,maxWidth:58,wordWrap:'break-word'}}>{centerText.name}</div>
+          </div>
           <canvas ref={confRef} width={300} height={300} style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:10}}/>
         </div>
-        {numWinners>1&&<div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>Drawing {currentRound+1} of {numWinners}</div>}
-        <button className="btn btn-gold" onClick={doSpin} disabled={spinning} style={{padding:'12px 40px',fontSize:15,marginBottom:16}}>{spinning?'Spinning...':'SPIN THE WHEEL'}</button>
+        <div style={{textAlign:'center'}}><button className="btn btn-gold" onClick={doSpin} disabled={spinning} style={{padding:'12px 40px',fontSize:15}}>{spinning?'Spinning...':'SPIN FOR WINNER '+(winners.length+1)}</button></div>
       </>}
-      {allPicked&&<div style={{display:'flex',gap:8,justifyContent:'center',margin:'16px 0'}}>
+      {allPicked&&<div style={{display:'flex',gap:8,justifyContent:'center',margin:'12px 0'}}>
         <button className="btn btn-gold" onClick={()=>onWinners(winners)} style={{padding:'12px 24px'}}>Confirm {winners.length>1?'Winners':'Winner'}</button>
-        <button className="btn btn-outline" onClick={()=>{setWinners([]);setCurrentRound(0);remainingRef.current=entries.slice();wheelOrderRef.current=shuffleArr(entries);angleRef.current=0;drawWheel();}} style={{padding:'12px 24px'}}>Start Over</button>
+        <button className="btn btn-outline" onClick={()=>{winnersRef.current=[];setWinners([]);remainingRef.current=entries.slice();wheelOrderRef.current=shuffleArr(entries);angleRef.current=0;setActiveNum(-1);setCenterText({num:'#',name:''});drawWheel();}} style={{padding:'12px 24px'}}>Start Over</button>
       </div>}
-      <div style={{maxHeight:200,overflowY:'auto',textAlign:'left',fontSize:12}}>
-        {entries.map((e,i)=>{var isW=winners.find(w=>w.cid===e.cid);return <div key={i} style={{padding:'4px 8px',borderBottom:'1px solid var(--border)',color:isW?'var(--gold)':'var(--text-dim)',fontWeight:isW?600:400,background:isW?'rgba(198,151,63,.1)':'transparent'}}>{e.num}. {e.rank} {e.name}{isW?' — WINNER!':''}</div>;})}
+      <div style={{maxHeight:220,overflowY:'auto',textAlign:'left',fontSize:13,marginTop:12,border:'0.5px solid rgba(198,151,63,.2)',borderRadius:8}}>
+        {entries.map((e,i)=>{var isW=winners.find(w=>w.cid===e.cid);var isActive=!isW&&activeNum===e.num;return <div key={i} id={'adm_pe_'+e.num} style={{padding:'8px 12px',borderBottom:'0.5px solid rgba(198,151,63,.1)',display:'flex',alignItems:'center',gap:10,color:isW?'var(--gold)':isActive?'var(--gold)':'var(--text-dim)',fontWeight:isW||isActive?500:400,background:isW?'rgba(198,151,63,.15)':isActive?'rgba(198,151,63,.08)':'transparent',opacity:isW?1:(winners.find(w=>w.cid===e.cid)?0.3:1),transition:'all .1s'}}><span style={{width:26,height:26,borderRadius:'50%',background:colors[(e.num-1)%colors.length],display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:500,color:'#E8E8EC',flexShrink:0}}>{e.num}</span>{e.rank} {e.name}{isW?' \u2014 WINNER!':''}</div>;})}
       </div>
     </div>
   </div></div>);
