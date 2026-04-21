@@ -937,9 +937,10 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
   React.useEffect(()=>{loadGiveaways();},[]);
 
   const handleToggleEvents=async()=>{
-    const nv=!eventsEnabled;setEventsEnabled(nv);
-    await api(backendUrl,'toggleEventsTab',{token:authToken,enabled:nv});
-    flash('Events tab '+(nv?'enabled':'disabled'));
+    const nv=!eventsEnabled;
+    const res=await api(backendUrl,'toggleEventsTab',{token:authToken,enabled:nv});
+    if(res.ok){setEventsEnabled(nv);flash('Events tab '+(nv?'enabled':'disabled'));}
+    else{flash('Error toggling events tab');}
   };
 
   const handleCreate=async()=>{
