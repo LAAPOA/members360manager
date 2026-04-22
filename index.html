@@ -931,10 +931,15 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
   const[spinGiveaway,setSpinGiveaway]=useState(null);
   const[eventsEnabled,setEventsEnabled]=useState(true);
   const descRef=React.useRef(null);
+  const winEmailRef=React.useRef(null);
+  const thanksEmailRef=React.useRef(null);
+  const[activeEditor,setActiveEditor]=useState('desc');
 
   const getDesc=()=>descRef.current?descRef.current.innerHTML.trim():'';
   const setDescHtml=(html)=>{if(descRef.current)descRef.current.innerHTML=html||'';};
-  const execCmd=(cmd,val)=>{document.execCommand(cmd,false,val||null);if(descRef.current)descRef.current.focus();};
+  const getActiveRef=()=>{if(activeEditor==='winEmail')return winEmailRef;if(activeEditor==='thanksEmail')return thanksEmailRef;return descRef;};
+  const execCmd=(cmd,val)=>{document.execCommand(cmd,false,val||null);var r=getActiveRef();if(r.current)r.current.focus();};
+  const insertTag=(tag)=>{document.execCommand('insertText',false,tag);var r=getActiveRef();if(r.current)r.current.focus();};
 
   const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center',flexShrink:0};
   const selStyle={background:'var(--navy)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'3px 4px',fontSize:11,fontFamily:'inherit',flexShrink:0};
@@ -952,8 +957,10 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
 
   const handleCreate=async()=>{
     const d=getDesc();if(!title.trim())return;setSaving(true);
-    const res=await api(backendUrl,'createGiveaway',{token:authToken,title:title.trim(),description:d,drawDate:drawDate,winnerCount:winnerCount});
-    setSaving(false);if(res.ok){flash('Giveaway created');setTitle('');setDescHtml('');setDrawDate('');setWinnerCount(1);loadGiveaways();}
+    const winBody=winEmailRef.current?winEmailRef.current.innerHTML.trim():'';
+    const thanksBody=thanksEmailRef.current?thanksEmailRef.current.innerHTML.trim():'';
+    const res=await api(backendUrl,'createGiveaway',{token:authToken,title:title.trim(),description:d,drawDate:drawDate,winnerCount:winnerCount,winnerEmailBody:winBody,thanksEmailBody:thanksBody});
+    setSaving(false);if(res.ok){flash('Giveaway created');setTitle('');setDescHtml('');setDrawDate('');setWinnerCount(1);if(winEmailRef.current)winEmailRef.current.innerHTML='';if(thanksEmailRef.current)thanksEmailRef.current.innerHTML='';loadGiveaways();}
   };
 
   const handleDelete=async(id)=>{if(!confirm('Delete this giveaway?'))return;await api(backendUrl,'deleteGiveaway',{token:authToken,giveawayId:id});flash('Deleted');loadGiveaways();};
@@ -977,8 +984,8 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
   }
 
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
-  const insertImage=()=>{const url=prompt('Image URL:','https://');if(url){document.execCommand('insertHTML',false,'<img src="'+url+'" style="max-width:100%;border-radius:6px;margin:8px 0">');}if(descRef.current)descRef.current.focus();};
-  const insertHR=()=>{document.execCommand('insertHTML',false,'<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');if(descRef.current)descRef.current.focus();};
+  const insertImage=()=>{const url=prompt('Image URL:','https://');if(url){document.execCommand('insertHTML',false,'<img src="'+url+'" style="max-width:100%;border-radius:6px;margin:8px 0">');var r=getActiveRef();if(r.current)r.current.focus();}};
+  const insertHR=()=>{document.execCommand('insertHTML',false,'<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');var r=getActiveRef();if(r.current)r.current.focus();};
 
   return(<div className="confirm-overlay" onClick={onClose}><div className="panel" onClick={ev=>ev.stopPropagation()}>
     <div className="ph"><h2>Events / Giveaways</h2><button onClick={onClose}>{IC.x}</button></div>
@@ -1020,7 +1027,7 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertHR}>&mdash;</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('removeFormat')}>{"\u2715"}</button>
         </div>
-        <div ref={descRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:12,color:'var(--text)',fontSize:14,fontFamily:'inherit',minHeight:80,maxHeight:200,overflowY:'auto',outline:'none',lineHeight:1.6,marginBottom:8}} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
+        <div ref={descRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:12,color:'var(--text)',fontSize:14,fontFamily:'inherit',minHeight:80,maxHeight:200,overflowY:'auto',outline:'none',lineHeight:1.6,marginBottom:8}} onFocus={e=>{e.target.style.borderColor='var(--gold)';setActiveEditor('desc');}} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
         <div style={{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}}>
           <div style={{flex:1,minWidth:140}}>
             <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Draw date/time (optional)</label>
@@ -1031,7 +1038,21 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
             <input type="number" min={1} max={20} value={winnerCount} onChange={e=>setWinnerCount(parseInt(e.target.value)||1)} style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit',boxSizing:'border-box'}}/>
           </div>
         </div>
-        <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:10}}>{drawDate?'Auto-draw: 10min reminder email, entries lock at 1min, auto-spin at draw time':'Manual draw — spin when ready'}</div>
+        <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:10}}>{drawDate?'Auto-draw at scheduled time, emails sent after draw':'Manual draw \u2014 spin when ready, emails sent after draw'}</div>
+
+        <div style={{marginTop:12,marginBottom:8}}>
+          <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:'var(--gold)'}}>Winner email</div>
+          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>Merge tags: <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{name}}'),50)}}>{'{'}{'{'+'name}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{rank}}'),50)}}>{'{'}{'{'+'rank}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{title}}'),50)}}>{'{'}{'{'+'title}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{winners}}'),50)}}>{'{'}{'{'+'winners}}'}</span></div>
+          <div ref={winEmailRef} contentEditable={true} onFocus={()=>setActiveEditor('winEmail')} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:10,color:'var(--text)',fontSize:13,fontFamily:'inherit',minHeight:60,maxHeight:140,overflowY:'auto',outline:'none',lineHeight:1.5}}/>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:'var(--text-dim)'}}>Thank-you email (non-winners)</div>
+          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>Merge tags: <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{name}}'),50)}}>{'{'}{'{'+'name}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{rank}}'),50)}}>{'{'}{'{'+'rank}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{title}}'),50)}}>{'{'}{'{'+'title}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{winners}}'),50)}}>{'{'}{'{'+'winners}}'}</span></div>
+          <div ref={thanksEmailRef} contentEditable={true} onFocus={()=>setActiveEditor('thanksEmail')} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:10,color:'var(--text)',fontSize:13,fontFamily:'inherit',minHeight:60,maxHeight:140,overflowY:'auto',outline:'none',lineHeight:1.5}}/>
+        </div>
+
+        <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:10}}>The toolbar above applies to whichever editor you last clicked into. Leave emails blank to skip sending.</div>
         <button className="btn btn-gold" onClick={handleCreate} disabled={saving}>{saving?'Creating...':'Create Giveaway'}</button>
       </div>
       {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
