@@ -685,13 +685,20 @@ function ImportPanel({onClose,onImport,existingMembers}){
           )}
         </div>
 
-        <div className="cinfo"><p>The server will automatically: <strong>import new members</strong> (by CID), <strong>update names only</strong> for existing members, and <strong>skip all other data</strong> for matches. You will be alerted if 3+ fields differ.</p></div>
+        <div className="cinfo"><p><strong>New members</strong> (by CID) will be imported. <strong>Existing CIDs</strong> will be skipped — no data changed. After import, you will be notified of active members not on the import list.</p></div>
+
+        <div style={{marginBottom:8,fontSize:13}}>
+          <span style={{color:'var(--green)',fontWeight:500}}>{stats.newCount} new</span>
+          <span style={{color:'var(--text-muted)',margin:'0 6px'}}>{'\u00b7'}</span>
+          <span style={{color:'var(--text-muted)'}}>{stats.dupeCount} already in system (will skip)</span>
+        </div>
 
         <div className="import-preview">
           <table><thead><tr><th>Name</th><th>CID</th><th>Rank</th><th>MOU</th><th>Status</th><th>Email</th></tr></thead>
           <tbody>{filtered.slice(0,100).map((m,i)=>{
-            return<tr key={i}>
-              <td style={{fontWeight:600}}>{m.name}</td>
+            const isNew=!existingCids.has(m.cid);
+            return<tr key={i} style={{opacity:isNew?1:0.4}}>
+              <td style={{fontWeight:600}}>{m.name}{!isNew&&<span style={{fontSize:10,color:'var(--text-muted)',marginLeft:6}}>exists</span>}</td>
               <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11}}>{m.cid}</span></td>
               <td>{m.rank}</td>
               <td>{m.mou}</td>
@@ -706,7 +713,7 @@ function ImportPanel({onClose,onImport,existingMembers}){
     <div className="pf">
       {parsed&&<button className="btn" onClick={()=>setParsed(null)}>Back</button>}
       <button className="btn" onClick={onClose}>Cancel</button>
-      {parsed&&<button className="btn btn-gold" disabled={filtered.length===0||importing} onClick={()=>{setImporting(true);onImport(filtered);}}>{IC.plus} Import {filtered.length} Record{filtered.length!==1?'s':''}</button>}
+      {parsed&&<button className="btn btn-gold" disabled={filtered.length===0||importing} onClick={()=>{setImporting(true);onImport(filtered);}}>{IC.plus} Import {stats.newCount} New Record{stats.newCount!==1?'s':''}</button>}
     </div>
   </div></div>);
 }
