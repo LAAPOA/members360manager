@@ -967,20 +967,27 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
 
   const handleSpin=(g)=>{
     var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
-    var wc=parseInt(g.winnerCount)||1;
-    if(entries.length<2){flash('Need at least 2 entries to spin');return;}
-    setSpinGiveaway({...g,parsedEntries:entries,numWinners:Math.min(wc,entries.length)});
+    // Exclude previous winners
+    var prevWinnerCids=(g.winnerCid||'').split(',').filter(Boolean);
+    var eligible=entries.filter(e=>prevWinnerCids.indexOf(e.cid)<0);
+    if(eligible.length<2){flash('Need at least 2 eligible entries to spin');return;}
+    setSpinGiveaway({...g,parsedEntries:eligible,allEntries:entries,numWinners:1});
   };
 
-  const handleWinners=async(g,winners)=>{
-    var winnerNames=winners.map(w=>w.rank+' '+w.name).join(', ');
-    await api(backendUrl,'closeGiveaway',{token:authToken,giveawayId:g.id,winners:winners});
-    flash(winnerNames+' '+(winners.length>1?'win!':'wins!'));
+  const handleWinnerRecorded=async(g,winner)=>{
+    await api(backendUrl,'recordWinner',{token:authToken,giveawayId:g.id,winner:winner});
+    flash(winner.rank+' '+winner.name+' wins! Giveaway stays open.');
     setSpinGiveaway(null);loadGiveaways();
   };
 
+  const handleCloseEvent=async(g)=>{
+    if(!confirm('Close this giveaway? No more entries or spins allowed.'))return;
+    await api(backendUrl,'closeGiveaway',{token:authToken,giveawayId:g.id,winners:[]});
+    flash('Event closed');loadGiveaways();
+  };
+
   if(spinGiveaway){
-    return <SpinWheel giveaway={spinGiveaway} onClose={()=>setSpinGiveaway(null)} onWinners={(ws)=>handleWinners(spinGiveaway,ws)}/>;
+    return <SpinWheel giveaway={spinGiveaway} onClose={()=>setSpinGiveaway(null)} onWinners={(ws)=>handleWinnerRecorded(spinGiveaway,ws[0])}/>;
   }
 
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
@@ -1060,24 +1067,29 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
        giveaways.map(g=>{
          var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
          var isClosed=g.status==='closed';
-         var isLocked=g.status==='locked';
-         var wc=parseInt(g.winnerCount)||1;
+         var prevWinnerCids=(g.winnerCid||'').split(',').filter(Boolean);
+         var prevWinnerNames=(g.winnerName||'').split(', ').filter(Boolean);
+         var eligible=entries.filter(e=>prevWinnerCids.indexOf(e.cid)<0);
          return <div key={g.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-             <span style={{fontSize:15,fontWeight:600,color:isClosed?'var(--text-muted)':'var(--gold)'}}>{g.title}{isLocked?' (locked)':''}</span>
+             <span style={{fontSize:15,fontWeight:600,color:isClosed?'var(--text-muted)':'var(--gold)'}}>{g.title}</span>
              <span style={{display:'flex',gap:6}}>
                {!isClosed&&<button style={{fontSize:11,padding:'3px 8px',background:'var(--gold)',border:'none',borderRadius:4,color:'var(--navy)',cursor:'pointer',fontFamily:'inherit',fontWeight:600}} onClick={()=>handleSpin(g)}>Spin</button>}
+               {!isClosed&&<button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--text-muted)',borderRadius:4,color:'var(--text-muted)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleCloseEvent(g)}>Close</button>}
                <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(g.id)}>Delete</button>
              </span>
            </div>
            {g.description&&<div style={{fontSize:13,color:'var(--text-dim)',marginBottom:6,lineHeight:1.5}} dangerouslySetInnerHTML={{__html:g.description}}/>}
            <div style={{fontSize:12,color:'var(--text-muted)'}}>
-             {entries.length} {entries.length===1?'entry':'entries'} {'\u00b7'} {wc} winner{wc>1?'s':''}
+             {entries.length} {entries.length===1?'entry':'entries'} {'\u00b7'} {eligible.length} eligible
              {g.drawDate&&!isClosed?' \u00b7 Draw: '+new Date(g.drawDate).toLocaleString():''}
-             {isClosed?' \u00b7 Winner'+(g.winnerName&&g.winnerName.includes(',')?'s':'')+': '+(g.winnerName||'none'):''}
            </div>
+           {prevWinnerNames.length>0&&<div style={{marginTop:6,padding:8,background:'rgba(198,151,63,.08)',borderRadius:6,fontSize:12}}>
+             <div style={{fontWeight:500,color:'var(--gold)',marginBottom:4}}>{prevWinnerNames.length} winner{prevWinnerNames.length>1?'s':''} drawn:</div>
+             {prevWinnerNames.map((n,i)=><div key={i} style={{color:'var(--gold)'}}>&#x1f3c6; {n}</div>)}
+           </div>}
            {entries.length>0&&<div style={{marginTop:8,maxHeight:150,overflowY:'auto',fontSize:12,color:'var(--text-dim)'}}>
-             {entries.map((e,i)=><div key={i} style={{padding:'3px 0',borderBottom:'1px solid var(--border)'}}>{e.num}. {e.rank} {e.name}</div>)}
+             {entries.map((e,i)=>{var isW=prevWinnerCids.indexOf(e.cid)>=0;return <div key={i} style={{padding:'3px 0',borderBottom:'1px solid var(--border)',color:isW?'var(--gold)':'var(--text-dim)',fontWeight:isW?500:400}}>{e.num}. {e.rank} {e.name}{isW?' \u2014 WINNER!':''}</div>;})}
            </div>}
          </div>;
        })
