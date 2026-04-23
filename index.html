@@ -1069,7 +1069,16 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
   const setDescHtml=(html)=>{if(descRef.current)descRef.current.innerHTML=html||'';};
   const getActiveRef=()=>{if(activeEditor==='winEmail')return winEmailRef;if(activeEditor==='thanksEmail')return thanksEmailRef;return descRef;};
   const execCmd=(cmd,val)=>{document.execCommand(cmd,false,val||null);var r=getActiveRef();if(r.current)r.current.focus();};
-  const insertTag=(tag)=>{document.execCommand('insertText',false,tag);var r=getActiveRef();if(r.current)r.current.focus();};
+  const insertTag=(tag,editorKey)=>{
+    var ref=editorKey==='winEmail'?winEmailRef:editorKey==='thanksEmail'?thanksEmailRef:descRef;
+    if(ref.current){ref.current.focus();
+      var sel=window.getSelection();
+      if(!sel.rangeCount||!ref.current.contains(sel.anchorNode)){
+        sel.selectAllChildren(ref.current);sel.collapseToEnd();
+      }
+      document.execCommand('insertText',false,tag);
+    }
+  };
 
   const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center',flexShrink:0};
   const selStyle={background:'var(--navy)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'3px 4px',fontSize:11,fontFamily:'inherit',flexShrink:0};
@@ -1220,13 +1229,13 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
 
         <div style={{marginTop:12,marginBottom:8}}>
           <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:'var(--gold)'}}>Winner email</div>
-          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>Merge tags: <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{name}}'),50)}}>{'{'}{'{'+'name}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{rank}}'),50)}}>{'{'}{'{'+'rank}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{title}}'),50)}}>{'{'}{'{'+'title}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('winEmail');setTimeout(()=>insertTag('{{winners}}'),50)}}>{'{'}{'{'+'winners}}'}</span></div>
+          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>Merge tags: <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{name}}','winEmail')}>{'{'}{'{'+'name}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{rank}}','winEmail')}>{'{'}{'{'+'rank}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{title}}','winEmail')}>{'{'}{'{'+'title}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{winners}}','winEmail')}>{'{'}{'{'+'winners}}'}</span></div>
           <div ref={winEmailRef} contentEditable={true} onFocus={()=>setActiveEditor('winEmail')} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:10,color:'var(--text)',fontSize:13,fontFamily:'inherit',minHeight:60,maxHeight:140,overflowY:'auto',outline:'none',lineHeight:1.5}}/>
         </div>
 
         <div style={{marginBottom:12}}>
           <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:'var(--text-dim)'}}>Thank-you email (non-winners)</div>
-          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>Merge tags: <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{name}}'),50)}}>{'{'}{'{'+'name}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{rank}}'),50)}}>{'{'}{'{'+'rank}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{title}}'),50)}}>{'{'}{'{'+'title}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onClick={()=>{setActiveEditor('thanksEmail');setTimeout(()=>insertTag('{{winners}}'),50)}}>{'{'}{'{'+'winners}}'}</span></div>
+          <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>Merge tags: <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{name}}','thanksEmail')}>{'{'}{'{'+'name}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{rank}}','thanksEmail')}>{'{'}{'{'+'rank}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{title}}','thanksEmail')}>{'{'}{'{'+'title}}'}</span> <span style={{cursor:'pointer',textDecoration:'underline'}} onMouseDown={e=>e.preventDefault()} onClick={()=>insertTag('{{winners}}','thanksEmail')}>{'{'}{'{'+'winners}}'}</span></div>
           <div ref={thanksEmailRef} contentEditable={true} onFocus={()=>setActiveEditor('thanksEmail')} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,padding:10,color:'var(--text)',fontSize:13,fontFamily:'inherit',minHeight:60,maxHeight:140,overflowY:'auto',outline:'none',lineHeight:1.5}}/>
         </div>
 
