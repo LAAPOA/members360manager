@@ -1304,23 +1304,30 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
       setPosts(p);
       setVideoUrl(res.videoUrl||'');
       setVideoEnabled(res.videoEnabled||false);
-      // Build ordered list with birthday and video placeholders
-      const items=p.map(x=>({type:'post',id:String(x.id),data:x}));
-      const bdayPos=res.birthdayPosition!==undefined?Number(res.birthdayPosition):0;
-      const vidPos=res.videoPosition!==undefined?Number(res.videoPosition):-1;
+      const ao=res.announcementOrder||[];
       const bday={type:'birthday',id:'BIRTHDAYS'};
       const video={type:'video',id:'VIDEO'};
-      // Insert in correct order - higher index first to avoid shifting
-      const inserts=[];
-      inserts.push({pos:bdayPos,item:bday});
-      if(vidPos>=0) inserts.push({pos:vidPos,item:video});
-      else items.push(video); // default to end if no position
-      inserts.sort(function(a,b){return b.pos-a.pos;});
-      inserts.forEach(function(ins){
-        if(ins.pos>=0&&ins.pos<=items.length)items.splice(ins.pos,0,ins.item);
-        else items.push(ins.item);
-      });
-      setOrderedItems(items);
+      const postMap={};
+      p.forEach(x=>{postMap[String(x.id)]={type:'post',id:String(x.id),data:x};});
+      if(ao.length>0){
+        // Build from saved order
+        const built=[];
+        ao.forEach(id=>{
+          if(id==='BIRTHDAYS')built.push(bday);
+          else if(id==='VIDEO')built.push(video);
+          else if(postMap[id]){built.push(postMap[id]);delete postMap[id];}
+        });
+        // Add any posts not in saved order (newly created)
+        Object.values(postMap).forEach(x=>built.push(x));
+        // Ensure birthday and video exist
+        if(!built.find(x=>x.id==='BIRTHDAYS'))built.unshift(bday);
+        if(!built.find(x=>x.id==='VIDEO'))built.push(video);
+        setOrderedItems(built);
+      }else{
+        // No saved order — default: birthday, video, then posts
+        const items=[bday,video,...p.map(x=>({type:'post',id:String(x.id),data:x}))];
+        setOrderedItems(items);
+      }
     }
     setLoading(false);
   };
