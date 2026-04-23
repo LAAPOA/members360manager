@@ -930,6 +930,9 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
   const[saving,setSaving]=useState(false);
   const[spinGiveaway,setSpinGiveaway]=useState(null);
   const[eventsEnabled,setEventsEnabled]=useState(true);
+  const[activeMenu,setActiveMenu]=useState(null);
+  const[deleteConfirm,setDeleteConfirm]=useState(null);
+  const[showArchived,setShowArchived]=useState(false);
   const descRef=React.useRef(null);
   const winEmailRef=React.useRef(null);
   const thanksEmailRef=React.useRef(null);
@@ -963,7 +966,43 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
     setSaving(false);if(res.ok){flash('Giveaway created');setTitle('');setDescHtml('');setDrawDate('');setWinnerCount(1);if(winEmailRef.current)winEmailRef.current.innerHTML='';if(thanksEmailRef.current)thanksEmailRef.current.innerHTML='';loadGiveaways();}
   };
 
-  const handleDelete=async(id)=>{if(!confirm('Delete this giveaway?'))return;await api(backendUrl,'deleteGiveaway',{token:authToken,giveawayId:id});flash('Deleted');loadGiveaways();};
+  const handleDelete=async(id)=>{
+    await api(backendUrl,'deleteGiveaway',{token:authToken,giveawayId:id});
+    flash('Deleted permanently');setDeleteConfirm(null);setActiveMenu(null);loadGiveaways();
+  };
+
+  const handleArchive=async(id)=>{
+    await api(backendUrl,'archiveGiveaway',{token:authToken,giveawayId:id});
+    flash('Archived \u2014 hidden from members');setActiveMenu(null);loadGiveaways();
+  };
+
+  const handlePDF=(g)=>{
+    setActiveMenu(null);
+    var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
+    var prevWinnerCids=(g.winnerCid||'').split(',').filter(Boolean);
+    var prevWinnerNames=(g.winnerName||'').split(', ').filter(Boolean);
+    var win='<html><head><style>body{font-family:Arial,sans-serif;margin:40px;color:#222}h1{color:#1a1a2e;font-size:22px;border-bottom:2px solid #C6973F;padding-bottom:8px}h2{font-size:16px;color:#333;margin-top:24px}.info{font-size:13px;color:#555;margin:4px 0}.winner{color:#8B6914;font-weight:bold;font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}th{background:#1a1a2e;color:#C6973F;text-align:left;padding:8px 10px}td{padding:6px 10px;border-bottom:1px solid #ddd}.won{background:#FFF8E7;font-weight:bold;color:#8B6914}</style></head><body>';
+    win+='<h1>'+g.title+'</h1>';
+    win+='<div class="info">Created: '+(g.createdAt||'')+'</div>';
+    if(g.drawDate)win+='<div class="info">Draw date: '+new Date(g.drawDate).toLocaleString()+'</div>';
+    win+='<div class="info">Total entries: '+entries.length+'</div>';
+    win+='<div class="info">Status: '+(g.status||'')+'</div>';
+    if(prevWinnerNames.length>0){
+      win+='<h2>Winners</h2>';
+      prevWinnerNames.forEach(function(n,i){win+='<div class="winner">'+(i+1)+'. '+n+'</div>';});
+    }
+    win+='<h2>All participants</h2><table><thead><tr><th>#</th><th>Rank</th><th>Name</th><th>Result</th></tr></thead><tbody>';
+    entries.forEach(function(e){
+      var isW=prevWinnerCids.indexOf(e.cid)>=0;
+      win+='<tr class="'+(isW?'won':'')+'"><td>'+e.num+'</td><td>'+e.rank+'</td><td>'+e.name+'</td><td>'+(isW?'WINNER':'')+'</td></tr>';
+    });
+    win+='</tbody></table></body></html>';
+    var blob=new Blob([win],{type:'text/html'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download=(g.title||'giveaway').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'_')+'_report.html';
+    document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+    flash('Report downloaded \u2014 open in browser and print to PDF');
+  };
 
   const handleSpin=(g)=>{
     var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
@@ -1064,19 +1103,27 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
       </div>
       {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
        giveaways.length===0?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>No giveaways yet</div>:
-       giveaways.map(g=>{
+       giveaways.filter(g=>g.status!=='archived').map(g=>{
          var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
          var isClosed=g.status==='closed';
          var prevWinnerCids=(g.winnerCid||'').split(',').filter(Boolean);
          var prevWinnerNames=(g.winnerName||'').split(', ').filter(Boolean);
          var eligible=entries.filter(e=>prevWinnerCids.indexOf(e.cid)<0);
+         var menuOpen=activeMenu===g.id;
          return <div key={g.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
              <span style={{fontSize:15,fontWeight:600,color:isClosed?'var(--text-muted)':'var(--gold)'}}>{g.title}</span>
-             <span style={{display:'flex',gap:6}}>
+             <span style={{display:'flex',gap:6,alignItems:'center'}}>
                {!isClosed&&<button style={{fontSize:11,padding:'3px 8px',background:'var(--gold)',border:'none',borderRadius:4,color:'var(--navy)',cursor:'pointer',fontFamily:'inherit',fontWeight:600}} onClick={()=>handleSpin(g)}>Spin</button>}
                {!isClosed&&<button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--text-muted)',borderRadius:4,color:'var(--text-muted)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleCloseEvent(g)}>Close</button>}
-               <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(g.id)}>Delete</button>
+               <div style={{position:'relative'}}>
+                 <button style={{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',fontSize:18,padding:'0 4px',fontFamily:'inherit'}} onClick={()=>setActiveMenu(menuOpen?null:g.id)}>{'\u22ee'}</button>
+                 {menuOpen&&<div style={{position:'absolute',right:0,top:24,background:'var(--surface-raised)',border:'1px solid var(--border)',borderRadius:6,zIndex:10,minWidth:140,boxShadow:'0 4px 12px rgba(0,0,0,.3)'}}>
+                   <button style={{display:'block',width:'100%',padding:'8px 14px',background:'none',border:'none',color:'var(--text)',cursor:'pointer',fontSize:12,fontFamily:'inherit',textAlign:'left'}} onClick={()=>handlePDF(g)}>Download report</button>
+                   <button style={{display:'block',width:'100%',padding:'8px 14px',background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:12,fontFamily:'inherit',textAlign:'left'}} onClick={()=>handleArchive(g.id)}>Archive</button>
+                   <button style={{display:'block',width:'100%',padding:'8px 14px',background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:12,fontFamily:'inherit',textAlign:'left'}} onClick={()=>{setDeleteConfirm(g);setActiveMenu(null);}}>Delete permanently</button>
+                 </div>}
+               </div>
              </span>
            </div>
            {g.description&&<div style={{fontSize:13,color:'var(--text-dim)',marginBottom:6,lineHeight:1.5}} dangerouslySetInnerHTML={{__html:g.description}}/>}
@@ -1094,7 +1141,34 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
          </div>;
        })
       }
+      {giveaways.some(g=>g.status==='archived')&&<div style={{marginTop:16}}>
+        <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:12,fontFamily:'inherit',padding:0}} onClick={()=>setShowArchived(!showArchived)}>{showArchived?'\u25bc':'\u25b6'} Archived ({giveaways.filter(g=>g.status==='archived').length})</button>
+        {showArchived&&giveaways.filter(g=>g.status==='archived').map(g=>{
+          var entries=[];try{entries=JSON.parse(g.entries||'[]');}catch(e){}
+          var prevWinnerNames=(g.winnerName||'').split(', ').filter(Boolean);
+          var prevWinnerCids=(g.winnerCid||'').split(',').filter(Boolean);
+          return <div key={g.id} style={{padding:12,marginTop:6,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8,opacity:0.7}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+              <span style={{fontSize:14,fontWeight:500,color:'var(--text-muted)'}}>{g.title}</span>
+              <span style={{display:'flex',gap:6}}>
+                <button style={{fontSize:11,padding:'2px 6px',background:'none',border:'1px solid var(--text-muted)',borderRadius:4,color:'var(--text-muted)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handlePDF(g)}>PDF</button>
+                <button style={{fontSize:11,padding:'2px 6px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>{setDeleteConfirm(g);setActiveMenu(null);}}>Delete</button>
+              </span>
+            </div>
+            <div style={{fontSize:11,color:'var(--text-muted)'}}>{entries.length} entries {'\u00b7'} {prevWinnerNames.length} winners</div>
+            {prevWinnerNames.length>0&&<div style={{fontSize:11,color:'var(--gold)',marginTop:4}}>{prevWinnerNames.join(', ')}</div>}
+          </div>;
+        })}
+      </div>}
     </div>
+    {deleteConfirm&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setDeleteConfirm(null)}><div style={{background:'var(--surface-raised)',border:'1px solid var(--border)',borderRadius:12,padding:24,maxWidth:360,textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontSize:16,fontWeight:600,marginBottom:8,color:'var(--text)'}}>Delete permanently?</div>
+      <div style={{fontSize:13,color:'var(--text-muted)',marginBottom:16}}>This will permanently delete <strong style={{color:'var(--gold)'}}>{deleteConfirm.title}</strong> and all its entries. This cannot be undone.</div>
+      <div style={{display:'flex',gap:8,justifyContent:'center'}}>
+        <button className="btn btn-outline" onClick={()=>setDeleteConfirm(null)}>Cancel</button>
+        <button style={{padding:'8px 20px',background:'var(--red)',border:'none',borderRadius:6,color:'white',cursor:'pointer',fontFamily:'inherit',fontWeight:500}} onClick={()=>handleDelete(deleteConfirm.id)}>Delete</button>
+      </div>
+    </div></div>}
     <div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div>
   </div></div>);
 }
