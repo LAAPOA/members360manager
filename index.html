@@ -884,7 +884,7 @@ function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
   const[title,setTitle]=useState('');
   const[saving,setSaving]=useState(false);
   const[editPost,setEditPost]=useState(null);
-  const[selectedGroups,setSelectedGroups]=useState({MOU28:true,MOU30:true,MOU39:true});
+  const[selectedGroups,setSelectedGroups]=useState({Airport:true,LAPD:true,TreeTrunk:true});
   const[pinNew,setPinNew]=useState(false);
   const[activeMenu,setActiveMenu]=useState(null);
   const bodyRef=React.useRef(null);
@@ -896,7 +896,7 @@ function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
   const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center',flexShrink:0};
   const selStyle={background:'var(--navy)',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'3px 4px',fontSize:11,fontFamily:'inherit',flexShrink:0};
   const sepStyle={width:1,background:'var(--border)',margin:'2px 4px',flexShrink:0};
-  const mouLabels={'MOU 28':'MOU 28','MOU 30':'MOU 30','MOU 39':'MOU 39'};
+  const mouLabels={'MOU 28':'LAPD Muni-Board','MOU 30':'Airport Bulletin Board','MOU 39':'Airport Bulletin Board','MOU30_39':'Airport Bulletin Board','MOU28':'LAPD Muni-Board','MOU65':'Tree Trunk Postings'};
 
   const loadPosts=async()=>{setLoading(true);const res=await api(backendUrl,'adminGetBulletins',{token:authToken,mouGroup:filter==='all'?'all':filter});if(res.ok)setPosts(res.posts||[]);setLoading(false);};
   React.useEffect(()=>{loadPosts();},[filter]);
@@ -904,7 +904,7 @@ function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
   const handlePost=async()=>{
     const b=getBody();if(!title.trim()||!b||b==='<br>')return;
     const groups=[];
-    if(selectedGroups.MOU28)groups.push('MOU 28');if(selectedGroups.MOU30)groups.push('MOU 30');if(selectedGroups.MOU39)groups.push('MOU 39');
+    if(selectedGroups.Airport)groups.push('MOU30_39');if(selectedGroups.LAPD)groups.push('MOU28');if(selectedGroups.TreeTrunk)groups.push('MOU65');
     if(groups.length===0){flash('Select at least one group');return;}
     setSaving(true);
     if(editPost){
@@ -953,8 +953,8 @@ function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
         <div ref={bodyRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:12,color:'var(--text)',fontSize:14,fontFamily:'inherit',minHeight:60,maxHeight:160,overflowY:'auto',outline:'none',lineHeight:1.6,marginBottom:8}} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
         {!editPost&&<div style={{display:'flex',gap:12,alignItems:'center',marginBottom:8,flexWrap:'wrap'}}>
           <span style={{fontSize:12,color:'var(--text-muted)'}}>Post to:</span>
-          {['MOU28','MOU30','MOU39'].map(k=><label key={k} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'var(--text-dim)',cursor:'pointer'}}>
-            <input type="checkbox" checked={selectedGroups[k]} onChange={()=>setSelectedGroups(s=>({...s,[k]:!s[k]}))} style={{cursor:'pointer'}}/> {k.replace('MOU','MOU ')}
+          {[['Airport','Airport Board'],['LAPD','LAPD Muni-Board'],['TreeTrunk','Tree Trunk Postings']].map(([k,label])=><label key={k} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'var(--text-dim)',cursor:'pointer'}}>
+            <input type="checkbox" checked={selectedGroups[k]} onChange={()=>setSelectedGroups(s=>({...s,[k]:!s[k]}))} style={{cursor:'pointer'}}/> {label}
           </label>)}
           <label style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'var(--gold)',cursor:'pointer',marginLeft:8}}>
             <input type="checkbox" checked={pinNew} onChange={()=>setPinNew(!pinNew)} style={{cursor:'pointer'}}/> Pin
@@ -967,7 +967,7 @@ function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
       </div>
 
       <div style={{display:'flex',gap:6,marginBottom:12}}>
-        {['all','MOU 28','MOU 30','MOU 39'].map(f=><button key={f} onClick={()=>setFilter(f)} style={{padding:'4px 12px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',border:'1px solid '+(filter===f?'var(--gold)':'var(--border)'),background:filter===f?'var(--gold-dim)':'var(--navy)',color:filter===f?'var(--gold)':'var(--text-dim)',fontFamily:'inherit'}}>{f==='all'?'All':f}</button>)}
+        {[['all','All'],['MOU30_39','Airport Board'],['MOU28','LAPD Muni-Board'],['MOU65','Tree Trunk Postings']].map(([f,label])=><button key={f} onClick={()=>setFilter(f)} style={{padding:'4px 12px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',border:'1px solid '+(filter===f?'var(--gold)':'var(--border)'),background:filter===f?'var(--gold-dim)':'var(--navy)',color:filter===f?'var(--gold)':'var(--text-dim)',fontFamily:'inherit'}}>{label}</button>)}
       </div>
 
       {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
@@ -978,7 +978,7 @@ function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
              <div>
                {isPinned&&<span style={{fontSize:10,background:'var(--gold-dim)',color:'var(--gold)',padding:'1px 6px',borderRadius:4,marginRight:6}}>PINNED</span>}
-               <span style={{fontSize:10,background:'var(--surface-raised)',color:'var(--text-muted)',padding:'1px 6px',borderRadius:4}}>{p.mouGroup}</span>
+               <span style={{fontSize:10,background:'var(--surface-raised)',color:'var(--text-muted)',padding:'1px 6px',borderRadius:4}}>{({'MOU30_39':'Airport','MOU28':'LAPD','MOU65':'Tree Trunk Postings'})[p.mouGroup]||p.mouGroup}</span>
                {isDeleted&&<span style={{fontSize:10,color:'var(--red)',marginLeft:6}}>DELETED</span>}
              </div>
              <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:16,padding:'0 4px',fontFamily:'inherit'}} onClick={()=>setActiveMenu(menuOpen?null:p.id)}>{'\u22ee'}</button>
