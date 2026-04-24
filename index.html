@@ -1680,14 +1680,15 @@ function App(){
     <div className={`sidebar ${mobileMenu?"open":""}`}>
       <div className="sidebar-brand"><div className="badge">LA</div><div><h1>LAAPOA</h1><span>Member Management</span></div></div>
       <div className="sidebar-nav">
-        <div className="nav-section">Main</div>
-        <button className="nav-item active" onClick={()=>setMobileMenu(false)}>{IC.users} Members</button>
-        <button className="nav-item" onClick={()=>{setPanel("email");setMobileMenu(false);}}>{IC.mail} Compose Email</button>
-        <button className="nav-item" onClick={()=>{setPanel("import");setMobileMenu(false);}}>{IC.upload} Import CSV</button>
-        <button className="nav-item" onClick={()=>{setPanel("notifications");setMobileMenu(false);}}>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</button>
+        <div className="nav-section">Content</div>
         <button className="nav-item" onClick={()=>{setPanel("announcements");setMobileMenu(false);}}>{IC.edit} Announcements</button>
         <button className="nav-item" onClick={()=>{setPanel("events");setMobileMenu(false);}}>{IC.calendar} Events / Giveaways</button>
         <button className="nav-item" onClick={()=>{setPanel("bulletinboard");setMobileMenu(false);}}>{IC.edit} Bulletin Board</button>
+        <div className="nav-section">Members</div>
+        <button className="nav-item active" onClick={()=>setMobileMenu(false)}>{IC.users} Members</button>
+        <button className="nav-item" onClick={()=>{setPanel("import");setMobileMenu(false);}}>{IC.upload} Import CSV</button>
+        <button className="nav-item" onClick={()=>{setPanel("email");setMobileMenu(false);}}>{IC.mail} Compose Email</button>
+        <button className="nav-item" onClick={()=>{setPanel("notifications");setMobileMenu(false);}}>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</button>
         <div className="nav-section">Groups</div>
         {groups.map(g=><button key={g.id} className="nav-item" onClick={()=>{setFilters(g.filters);setPanel(null);setMobileMenu(false);}}><span className="dot" style={{background:g.color}}/>{g.name}<span className="cnt">{resolveGroup(g,members).length}</span></button>)}
         <button className="nav-item" onClick={()=>{setPanel("groups");setMobileMenu(false);}}>{IC.plus} Manage Groups</button>
