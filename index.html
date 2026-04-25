@@ -877,6 +877,151 @@ function NotificationPanel({onClose,backendUrl,authToken,flash}){
   </div></div>);
 }
 
+function VotesPanel({onClose,backendUrl,authToken,flash}){
+  const[votes,setVotes]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[title,setTitle]=useState('');
+  const[voteType,setVoteType]=useState('yesno');
+  const[options,setOptions]=useState(['','']);
+  const[eligibleMous,setEligibleMous]=useState({all:true,'MOU 28':false,'MOU 30':false,'MOU 39':false,'MOU 65':false});
+  const[deadline,setDeadline]=useState('');
+  const[showResults,setShowResults]=useState('blind');
+  const[saving,setSaving]=useState(false);
+  const[decideEnabled,setDecideEnabled]=useState(true);
+  const descRef=React.useRef(null);
+
+  const getDesc=()=>descRef.current?descRef.current.innerHTML.trim():'';
+  const execCmd=(cmd,val)=>{document.execCommand(cmd,false,val||null);if(descRef.current)descRef.current.focus();};
+
+  const loadVotes=async()=>{setLoading(true);const res=await api(backendUrl,'adminGetVotes',{token:authToken});if(res.ok){setVotes(res.votes||[]);setDecideEnabled(res.decideEnabled!==false);}setLoading(false);};
+  React.useEffect(()=>{loadVotes();},[]);
+
+  const handleToggle=async()=>{const nv=!decideEnabled;const res=await api(backendUrl,'toggleDecideTab',{token:authToken,enabled:nv});if(res.ok){setDecideEnabled(nv);flash('Decide tab '+(nv?'enabled':'disabled'));}};
+
+  const handleCreate=async()=>{
+    if(!title.trim())return;setSaving(true);
+    const d=getDesc();
+    const mous=eligibleMous.all?[]:Object.keys(eligibleMous).filter(k=>k!=='all'&&eligibleMous[k]);
+    const opts=voteType==='yesno'?[]:options.filter(o=>o.trim());
+    if(voteType!=='yesno'&&opts.length<2){flash('Need at least 2 options');setSaving(false);return;}
+    const res=await api(backendUrl,'createVote',{token:authToken,title:title.trim(),description:d,type:voteType,options:opts,eligibleMous:mous.length>0?mous:['all'],deadline:deadline,showResults:showResults});
+    setSaving(false);
+    if(res.ok){flash('Vote created');setTitle('');if(descRef.current)descRef.current.innerHTML='';setVoteType('yesno');setOptions(['','']);setDeadline('');setShowResults('blind');loadVotes();}
+    else flash(res.error||'Error');
+  };
+
+  const handleClose=async(id)=>{if(!confirm('Close this vote? No more votes will be accepted.'))return;await api(backendUrl,'closeVote',{token:authToken,voteId:id});flash('Vote closed');loadVotes();};
+  const handleDelete=async(id)=>{if(!confirm('Permanently delete this vote and all its data?'))return;await api(backendUrl,'deleteVote',{token:authToken,voteId:id});flash('Deleted');loadVotes();};
+
+  const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center',flexShrink:0};
+  const sepStyle={width:1,background:'var(--border)',margin:'2px 4px',flexShrink:0};
+
+  return(<div className="confirm-overlay" onClick={onClose}><div className="panel" onClick={ev=>ev.stopPropagation()}>
+    <div className="ph"><h2>Decide / Voting</h2><button onClick={onClose}>{IC.x}</button></div>
+    <div className="pb">
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,padding:'10px 14px',background:'var(--surface-raised)',borderRadius:8,border:'1px solid var(--border)'}}>
+        <span style={{fontSize:13,fontWeight:500,color:'var(--text)'}}>Decide tab visible to members</span>
+        <div onClick={handleToggle} style={{width:40,height:22,borderRadius:11,background:decideEnabled?'#27AE60':'var(--surface-raised)',border:'1px solid var(--border)',position:'relative',cursor:'pointer',transition:'all .2s',flexShrink:0}}>
+          <div style={{width:18,height:18,borderRadius:'50%',background:'white',position:'absolute',top:1,left:decideEnabled?20:1,transition:'all .2s'}}/>
+        </div>
+      </div>
+
+      <div style={{marginBottom:20,padding:16,background:'var(--surface-raised)',borderRadius:8,border:'1px solid var(--border)'}}>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>New Vote</div>
+        <input type="text" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Vote title (e.g., Approve new contract)" style={{width:'100%',marginBottom:8,padding:'8px 12px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:14,fontFamily:'inherit',boxSizing:'border-box'}}/>
+        <div style={{display:'flex',gap:2,padding:6,background:'var(--navy)',border:'1px solid var(--border)',borderBottom:'none',borderRadius:'6px 6px 0 0',overflowX:'auto',flexWrap:'nowrap',scrollbarWidth:'none'}}>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('bold')}><strong>B</strong></button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('italic')}><em>I</em></button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('underline')}><u>U</u></button>
+          <span style={sepStyle}/>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('insertUnorderedList')}>{"\u2022"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>{var url=prompt('URL:','https://');if(url)execCmd('createLink',url);}}>{"\ud83d\udd17"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>{var url=prompt('Image URL:','https://');if(url){document.execCommand('insertHTML',false,'<img src="'+url+'" style="max-width:100%;border-radius:6px;margin:8px 0">');if(descRef.current)descRef.current.focus();}}}>{"\ud83d\uddbc"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>{if(descRef.current){if(descRef.current.dataset.mode==='html'){descRef.current.innerHTML=descRef.current.innerText;descRef.current.dataset.mode='visual';}else{descRef.current.innerText=descRef.current.innerHTML;descRef.current.dataset.mode='html';}}}} title="Toggle HTML source">{'</>'}</button>
+        </div>
+        <div ref={descRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:10,color:'var(--text)',fontSize:13,fontFamily:'inherit',minHeight:50,maxHeight:120,overflowY:'auto',outline:'none',lineHeight:1.5,marginBottom:8}} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
+
+        <div style={{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}}>
+          <div style={{minWidth:120}}>
+            <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Vote type</label>
+            <select value={voteType} onChange={e=>{setVoteType(e.target.value);if(e.target.value==='yesno')setOptions(['','']);}} style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit'}}>
+              <option value="yesno">Yes / No</option>
+              <option value="multiple">Multiple Choice</option>
+              <option value="ranked">Ranked Choice</option>
+            </select>
+          </div>
+          <div style={{minWidth:120}}>
+            <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Results</label>
+            <select value={showResults} onChange={e=>setShowResults(e.target.value)} style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit'}}>
+              <option value="blind">Blind (hidden until closed)</option>
+              <option value="live">Live (visible while open)</option>
+            </select>
+          </div>
+          <div style={{minWidth:140}}>
+            <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Deadline (optional)</label>
+            <input type="datetime-local" value={deadline} onChange={e=>setDeadline(e.target.value)} style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit',boxSizing:'border-box'}}/>
+          </div>
+        </div>
+
+        {voteType!=='yesno'&&<div style={{marginBottom:8}}>
+          <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Options</label>
+          {options.map((o,i)=><div key={i} style={{display:'flex',gap:4,marginBottom:4}}>
+            <input type="text" value={o} onChange={e=>{var n=[...options];n[i]=e.target.value;setOptions(n);}} placeholder={'Option '+(i+1)} style={{flex:1,padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit'}}/>
+            {options.length>2&&<button style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:16}} onClick={()=>{var n=[...options];n.splice(i,1);setOptions(n);}}>×</button>}
+          </div>)}
+          {options.length<6&&<button style={{background:'none',border:'none',color:'var(--gold)',cursor:'pointer',fontSize:12,fontFamily:'inherit',padding:0}} onClick={()=>setOptions([...options,''])}>+ Add option</button>}
+        </div>}
+
+        <div style={{marginBottom:8}}>
+          <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Eligible MOUs</label>
+          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+            {['all','MOU 28','MOU 30','MOU 39','MOU 65'].map(k=><label key={k} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'var(--text-dim)',cursor:'pointer'}}>
+              <input type="checkbox" checked={k==='all'?eligibleMous.all:eligibleMous[k]} onChange={()=>{
+                if(k==='all'){setEligibleMous({all:true,'MOU 28':false,'MOU 30':false,'MOU 39':false,'MOU 65':false});}
+                else{var n={...eligibleMous,all:false,[k]:!eligibleMous[k]};if(!n['MOU 28']&&!n['MOU 30']&&!n['MOU 39']&&!n['MOU 65'])n.all=true;setEligibleMous(n);}
+              }} style={{cursor:'pointer'}}/> {k==='all'?'All MOUs':k}
+            </label>)}
+          </div>
+        </div>
+
+        <button className="btn btn-gold" onClick={handleCreate} disabled={saving}>{saving?'Creating...':'Create Vote'}</button>
+      </div>
+
+      {loading?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>Loading...</div>:
+       votes.length===0?<div style={{textAlign:'center',padding:20,color:'var(--text-muted)'}}>No votes yet</div>:
+       votes.map(v=>{
+         var isClosed=v.status==='closed';
+         var optList=(v.options||'').split('|').filter(Boolean);
+         var total=v.totalVoters||0;
+         return <div key={v.id} style={{padding:14,marginBottom:8,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
+           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+             <span style={{fontSize:15,fontWeight:600,color:isClosed?'var(--text-muted)':'var(--gold)'}}>{v.title}</span>
+             <span style={{display:'flex',gap:6}}>
+               {!isClosed&&<button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--text-muted)',borderRadius:4,color:'var(--text-muted)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleClose(v.id)}>Close</button>}
+               <button style={{fontSize:11,padding:'3px 8px',background:'none',border:'1px solid var(--red)',borderRadius:4,color:'var(--red)',cursor:'pointer',fontFamily:'inherit'}} onClick={()=>handleDelete(v.id)}>Delete</button>
+             </span>
+           </div>
+           {v.description&&<div style={{fontSize:13,color:'var(--text-dim)',marginBottom:6,lineHeight:1.5}} dangerouslySetInnerHTML={{__html:v.description}}/>}
+           <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>
+             {v.type==='yesno'?'Yes/No':v.type==='ranked'?'Ranked Choice':'Multiple Choice'} {'\u00b7'} {total} voter{total!==1?'s':''} {'\u00b7'} {v.showResults==='live'?'Live results':'Blind'} {'\u00b7'} {v.eligibleMous==='all'?'All MOUs':v.eligibleMous}
+             {v.deadline&&!isClosed?' \u00b7 Deadline: '+new Date(v.deadline).toLocaleString():''}
+           </div>
+           {v.results&&<div style={{marginTop:4}}>
+             {optList.map(opt=>{var count=v.results[opt]||0;var pct=total>0?Math.round(count/total*100):0;
+               return <div key={opt} style={{marginBottom:4}}>
+                 <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text-dim)',marginBottom:2}}><span>{opt}</span><span>{count} ({v.type==='ranked'?count+' pts':pct+'%'})</span></div>
+                 <div style={{height:6,background:'var(--surface)',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:(v.type==='ranked'?Math.min(count/(total||1)*20,100):pct)+'%',background:opt==='Yes'||opt.toLowerCase().includes('yes')?'var(--green)':opt==='No'||opt.toLowerCase().includes('no')?'var(--red)':'var(--gold)',borderRadius:3,transition:'width .3s'}}/></div>
+               </div>;
+             })}
+           </div>}
+         </div>;
+       })
+      }
+    </div>
+    <div className="pf"><button className="btn btn-gold" onClick={onClose}>Done</button></div>
+  </div></div>);
+}
+
 function BulletinBoardPanel({onClose,backendUrl,authToken,flash}){
   const[posts,setPosts]=useState([]);
   const[loading,setLoading]=useState(true);
@@ -1210,6 +1355,7 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertImage}>{"\ud83d\uddbc"}</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertHR}>&mdash;</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('removeFormat')}>{"\u2715"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>{var r=getActiveRef();if(r.current){if(r.current.dataset.mode==='html'){r.current.innerHTML=r.current.innerText;r.current.dataset.mode='visual';}else{r.current.innerText=r.current.innerHTML;r.current.dataset.mode='html';}}}} title="Toggle HTML source">{'</>'}</button>
         </div>
         <div ref={descRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:12,color:'var(--text)',fontSize:14,fontFamily:'inherit',minHeight:80,maxHeight:200,overflowY:'auto',outline:'none',lineHeight:1.6,marginBottom:8}} onFocus={e=>{e.target.style.borderColor='var(--gold)';setActiveEditor('desc');}} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
         <div style={{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}}>
@@ -1577,6 +1723,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertImage} title="Insert image">{"\ud83d\uddbc"}</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={insertHR} title="Horizontal divider">&mdash;</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('removeFormat')} title="Clear formatting">{"\u2715"}</button>
+          <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>{if(bodyRef.current){if(bodyRef.current.dataset.mode==='html'){bodyRef.current.innerHTML=bodyRef.current.innerText;bodyRef.current.dataset.mode='visual';}else{bodyRef.current.innerText=bodyRef.current.innerHTML;bodyRef.current.dataset.mode='html';}}}} title="Toggle HTML source">{'</>'}</button>
         </div>
         <div ref={bodyRef} contentEditable={true} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'0 0 6px 6px',padding:12,color:'var(--text)',fontSize:14,fontFamily:'inherit',minHeight:100,maxHeight:250,overflowY:'auto',outline:'none',lineHeight:1.6,marginBottom:8}} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border)'}/>
         <div style={{display:'flex',gap:8}}>
@@ -1683,6 +1830,7 @@ function App(){
         <div className="nav-section">Content</div>
         <button className="nav-item" onClick={()=>{setPanel("announcements");setMobileMenu(false);}}>{IC.edit} Announcements</button>
         <button className="nav-item" onClick={()=>{setPanel("events");setMobileMenu(false);}}>{IC.calendar} Events / Giveaways</button>
+        <button className="nav-item" onClick={()=>{setPanel("votes");setMobileMenu(false);}}>{IC.check} Decide / Voting</button>
         <button className="nav-item" onClick={()=>{setPanel("bulletinboard");setMobileMenu(false);}}>{IC.edit} Bulletin Board</button>
         <div className="nav-section">Members</div>
         <button className="nav-item active" onClick={()=>setMobileMenu(false)}>{IC.users} Members</button>
@@ -1740,6 +1888,7 @@ function App(){
     {panel==="notifications"&&<NotificationPanel onClose={()=>{setPanel(null);loadUnread(backendUrl,authToken);}} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {panel==="announcements"&&<AnnouncementsPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {panel==="events"&&<EventsPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
+    {panel==="votes"&&<VotesPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {panel==="bulletinboard"&&<BulletinBoardPanel onClose={()=>setPanel(null)} backendUrl={backendUrl} authToken={authToken} flash={flash}/>}
     {importAlerts&&<MissingMembersModal missing={importAlerts} onClose={()=>{setImportAlerts(null);setPanel(null);}} backendUrl={backendUrl} authToken={authToken} flash={flash} onRefresh={()=>loadData(backendUrl,authToken)}/>}
     {viewMember&&<ContactCard member={viewMember} onClose={()=>setViewMember(null)} onEdit={(m)=>{setViewMember(null);setEditMember(m);setPanel("edit");}}/>}
