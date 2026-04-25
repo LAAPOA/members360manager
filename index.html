@@ -888,6 +888,8 @@ function VotesPanel({onClose,backendUrl,authToken,flash}){
   const[showResults,setShowResults]=useState('blind');
   const[saving,setSaving]=useState(false);
   const[decideEnabled,setDecideEnabled]=useState(true);
+  const[candidates,setCandidates]=useState([{name:'',photo:'',bio:''},{name:'',photo:'',bio:''}]);
+  const[seats,setSeats]=useState(1);
   const descRef=React.useRef(null);
 
   const getDesc=()=>descRef.current?descRef.current.innerHTML.trim():'';
@@ -903,10 +905,16 @@ function VotesPanel({onClose,backendUrl,authToken,flash}){
     const d=getDesc();
     const mous=eligibleMous.all?[]:Object.keys(eligibleMous).filter(k=>k!=='all'&&eligibleMous[k]);
     const opts=voteType==='yesno'?[]:options.filter(o=>o.trim());
-    if(voteType!=='yesno'&&opts.length<2){flash('Need at least 2 options');setSaving(false);return;}
-    const res=await api(backendUrl,'createVote',{token:authToken,title:title.trim(),description:d,type:voteType,options:opts,eligibleMous:mous.length>0?mous:['all'],deadline:deadline,showResults:showResults});
+    if(voteType!=='yesno'&&voteType!=='election'&&opts.length<2){flash('Need at least 2 options');setSaving(false);return;}
+    var cands=null;
+    if(voteType==='election'){
+      cands=candidates.filter(c=>c.name.trim());
+      if(cands.length<2){flash('Need at least 2 candidates');setSaving(false);return;}
+      if(seats<1){flash('Need at least 1 seat');setSaving(false);return;}
+    }
+    const res=await api(backendUrl,'createVote',{token:authToken,title:title.trim(),description:d,type:voteType,options:opts,eligibleMous:mous.length>0?mous:['all'],deadline:deadline,showResults:showResults,candidates:cands,seats:seats});
     setSaving(false);
-    if(res.ok){flash('Vote created');setTitle('');if(descRef.current)descRef.current.innerHTML='';setVoteType('yesno');setOptions(['','']);setDeadline('');setShowResults('blind');loadVotes();}
+    if(res.ok){flash('Vote created');setTitle('');if(descRef.current)descRef.current.innerHTML='';setVoteType('yesno');setOptions(['','']);setCandidates([{name:'',photo:'',bio:''},{name:'',photo:'',bio:''}]);setSeats(1);setDeadline('');setShowResults('blind');loadVotes();}
     else flash(res.error||'Error');
   };
 
@@ -948,6 +956,7 @@ function VotesPanel({onClose,backendUrl,authToken,flash}){
               <option value="yesno">Yes / No</option>
               <option value="multiple">Multiple Choice</option>
               <option value="ranked">Ranked Choice</option>
+              <option value="election">Election (candidates with photos)</option>
             </select>
           </div>
           <div style={{minWidth:120}}>
@@ -970,6 +979,22 @@ function VotesPanel({onClose,backendUrl,authToken,flash}){
             {options.length>2&&<button style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:16}} onClick={()=>{var n=[...options];n.splice(i,1);setOptions(n);}}>×</button>}
           </div>)}
           {options.length<6&&<button style={{background:'none',border:'none',color:'var(--gold)',cursor:'pointer',fontSize:12,fontFamily:'inherit',padding:0}} onClick={()=>setOptions([...options,''])}>+ Add option</button>}
+        </div>}
+
+        {voteType==='election'&&<div style={{marginBottom:8}}>
+          <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Seats to fill</label>
+          <input type="number" min={1} max={10} value={seats} onChange={e=>setSeats(parseInt(e.target.value)||1)} style={{width:80,padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit',marginBottom:8}}/>
+          <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Candidates</label>
+          {candidates.map((c,i)=><div key={i} style={{padding:10,marginBottom:6,background:'var(--navy)',border:'1px solid var(--border)',borderRadius:8}}>
+            <div style={{display:'flex',gap:6,marginBottom:4}}>
+              <input type="text" value={c.name} onChange={e=>{var n=[...candidates];n[i]={...n[i],name:e.target.value};setCandidates(n);}} placeholder="Candidate name" style={{flex:1,padding:'6px 10px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:13,fontFamily:'inherit'}}/>
+              {candidates.length>2&&<button style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:16}} onClick={()=>{var n=[...candidates];n.splice(i,1);setCandidates(n);}}>×</button>}
+            </div>
+            <input type="text" value={c.photo} onChange={e=>{var n=[...candidates];n[i]={...n[i],photo:e.target.value};setCandidates(n);}} placeholder="Photo URL (paste headshot link)" style={{width:'100%',padding:'6px 10px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,fontFamily:'inherit',marginBottom:4,boxSizing:'border-box'}}/>
+            <input type="text" value={c.bio} onChange={e=>{var n=[...candidates];n[i]={...n[i],bio:e.target.value};setCandidates(n);}} placeholder="Short bio (optional)" style={{width:'100%',padding:'6px 10px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,fontFamily:'inherit',boxSizing:'border-box'}}/>
+            {c.photo&&<img src={c.photo} style={{width:50,height:50,borderRadius:'50%',objectFit:'cover',marginTop:4,border:'2px solid var(--gold)'}} onError={e=>{e.target.style.display='none';}}/>}
+          </div>)}
+          {candidates.length<10&&<button style={{background:'none',border:'none',color:'var(--gold)',cursor:'pointer',fontSize:12,fontFamily:'inherit',padding:0}} onClick={()=>setCandidates([...candidates,{name:'',photo:'',bio:''}])}>+ Add candidate</button>}
         </div>}
 
         <div style={{marginBottom:8}}>
@@ -1003,7 +1028,7 @@ function VotesPanel({onClose,backendUrl,authToken,flash}){
            </div>
            {v.description&&<div style={{fontSize:13,color:'var(--text-dim)',marginBottom:6,lineHeight:1.5}} dangerouslySetInnerHTML={{__html:v.description}}/>}
            <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>
-             {v.type==='yesno'?'Yes/No':v.type==='ranked'?'Ranked Choice':'Multiple Choice'} {'\u00b7'} {total} voter{total!==1?'s':''} {'\u00b7'} {v.showResults==='live'?'Live results':'Blind'} {'\u00b7'} {v.eligibleMous==='all'?'All MOUs':v.eligibleMous}
+             {v.type==='yesno'?'Yes/No':v.type==='ranked'?'Ranked Choice':v.type==='election'?'Election ('+v.seats+' seat'+(v.seats>1?'s':'')+')'  :'Multiple Choice'} {'\u00b7'} {total} voter{total!==1?'s':''} {'\u00b7'} {v.showResults==='live'?'Live results':'Blind'} {'\u00b7'} {v.eligibleMous==='all'?'All MOUs':v.eligibleMous}
              {v.deadline&&!isClosed?' \u00b7 Deadline: '+new Date(v.deadline).toLocaleString():''}
            </div>
            {v.results&&<div style={{marginTop:4}}>
