@@ -1636,8 +1636,15 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
       setPosts(p);
       setVideoUrl(res.videoUrl||'');
       setVideoEnabled(res.videoEnabled||false);
-      setMouwishEnabled(res.mouwishEnabled||false);
-      setMouwishDeadline(res.mouwishDeadline||'');
+// mouwish config comes from mouwish-api (separate Worker, KV-backed)
+      try{
+        const mcRes=await fetch('https://mouwish-api.mike-a78.workers.dev/api/config');
+        const mc=await mcRes.json();
+        if(mc&&mc.ok){
+          setMouwishEnabled(mc.enabled||false);
+          setMouwishDeadline(mc.deadline||'');
+        }
+      }catch(e){}
       const ao=res.announcementOrder||[];
       const bday={type:'birthday',id:'BIRTHDAYS'};
       const video={type:'video',id:'VIDEO'};
@@ -1690,14 +1697,25 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const cancelEdit=()=>{setEditId(null);setTitle('');setBodyHtml('');};
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
-  const saveOrder=async(items,vUrl,vEnabled,mwEnabled,mwDeadline)=>{
+ const saveOrder=async(items,vUrl,vEnabled,mwEnabled,mwDeadline)=>{
     const order=items.map(i=>String(i.id));
     const payload={token:authToken,order:order};
     if(vUrl!==undefined)payload.videoUrl=vUrl;
     if(vEnabled!==undefined)payload.videoEnabled=vEnabled;
-    if(mwEnabled!==undefined)payload.mouwishEnabled=mwEnabled;
-    if(mwDeadline!==undefined)payload.mouwishDeadline=mwDeadline;
     await api(backendUrl,'saveAnnouncementOrder',payload);
+    // mouwish config goes to mouwish-api (separate Worker, KV-backed)
+    if(mwEnabled!==undefined||mwDeadline!==undefined){
+      const cfg={appToken:'8f8d1e2d16e4d2da0a6016ff3a124d2194cbf1570c77f20ccd0255322e3fe985'};
+      if(mwEnabled!==undefined)cfg.enabled=mwEnabled;
+      if(mwDeadline!==undefined)cfg.deadline=mwDeadline;
+      try{
+        await fetch('https://mouwish-api.mike-a78.workers.dev/api/config/save',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(cfg)
+        });
+      }catch(e){}
+    }
     flash('Order saved');
   };
  
