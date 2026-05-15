@@ -1620,6 +1620,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const[dragIdx,setDragIdx]=useState(null);
   const[videoUrl,setVideoUrl]=useState('');
   const[videoEnabled,setVideoEnabled]=useState(false);
+  const[mouwishEnabled,setMouwishEnabled]=useState(false);
   const bodyRef=React.useRef(null);
 
   const getBody=()=>bodyRef.current?bodyRef.current.innerHTML.trim():'';
@@ -1634,9 +1635,11 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
       setPosts(p);
       setVideoUrl(res.videoUrl||'');
       setVideoEnabled(res.videoEnabled||false);
+      setMouwishEnabled(res.mouwishEnabled||false);
       const ao=res.announcementOrder||[];
       const bday={type:'birthday',id:'BIRTHDAYS'};
       const video={type:'video',id:'VIDEO'};
+      const mouwish={type:'mouwish',id:'MOUWISH_VIEWER'};
       const postMap={};
       p.forEach(x=>{postMap[String(x.id)]={type:'post',id:String(x.id),data:x};});
       if(ao.length>0){
@@ -1645,17 +1648,19 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
         ao.forEach(id=>{
           if(id==='BIRTHDAYS')built.push(bday);
           else if(id==='VIDEO')built.push(video);
+          else if(id==='MOUWISH_VIEWER')built.push(mouwish);
           else if(postMap[id]){built.push(postMap[id]);delete postMap[id];}
         });
         // Add any posts not in saved order (newly created)
         Object.values(postMap).forEach(x=>built.push(x));
-        // Ensure birthday and video exist
+        // Ensure birthday, video, mouwish exist
         if(!built.find(x=>x.id==='BIRTHDAYS'))built.unshift(bday);
         if(!built.find(x=>x.id==='VIDEO'))built.push(video);
+        if(!built.find(x=>x.id==='MOUWISH_VIEWER'))built.push(mouwish);
         setOrderedItems(built);
       }else{
-        // No saved order — default: birthday, video, then posts
-        const items=[bday,video,...p.map(x=>({type:'post',id:String(x.id),data:x}))];
+        // No saved order — default: birthday, video, mouwish, then posts
+        const items=[bday,video,mouwish,...p.map(x=>({type:'post',id:String(x.id),data:x}))];
         setOrderedItems(items);
       }
     }
@@ -1683,21 +1688,22 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const cancelEdit=()=>{setEditId(null);setTitle('');setBodyHtml('');};
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
-  const saveOrder=async(items,vUrl,vEnabled)=>{
+const saveOrder=async(items,vUrl,vEnabled,mwEnabled)=>{
     const order=items.map(i=>String(i.id));
     const payload={token:authToken,order:order};
     if(vUrl!==undefined)payload.videoUrl=vUrl;
     if(vEnabled!==undefined)payload.videoEnabled=vEnabled;
+    if(mwEnabled!==undefined)payload.mouwishEnabled=mwEnabled;
     await api(backendUrl,'saveAnnouncementOrder',payload);
     flash('Order saved');
   };
-
+ 
   const moveItem=(fromIdx,toIdx)=>{
     const items=[...orderedItems];
     const[moved]=items.splice(fromIdx,1);
     items.splice(toIdx,0,moved);
     setOrderedItems(items);
-    saveOrder(items,undefined,undefined);
+    saveOrder(items,undefined,undefined,undefined);
   };
 
   const tbStyle={background:'none',border:'1px solid transparent',borderRadius:4,color:'var(--text-dim)',cursor:'pointer',padding:'4px 7px',fontSize:12,fontFamily:'inherit',lineHeight:1,minWidth:28,textAlign:'center',flexShrink:0};
@@ -1792,11 +1798,32 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
                  </div>
                </div>
                <input type="text" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} onBlur={()=>saveOrder(orderedItems,videoUrl,videoEnabled)} placeholder="YouTube URL or livestream link" style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,fontFamily:'inherit',boxSizing:'border-box'}}/>
-               {videoUrl&&<div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Members will see an embedded video player</div>}
-             </div>
-           </div>;
-         }
-         const p=item.data;
+  {videoUrl&&<div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Members will see an embedded video player</div>}
+              </div>
+            </div>;
+          }
+          if(item.type==='mouwish'){
+            return <div key="MOUWISH_VIEWER" style={{padding:14,marginBottom:8,background:'linear-gradient(135deg,#1a1530,var(--navy))',border:'2px dashed var(--gold)',borderRadius:8,display:'flex',alignItems:'center',gap:10}}>
+              <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
+                <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx<orderedItems.length-1&&moveItem(idx,idx+1)}>{"\u25bc"}</button>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:16}}>{"\ud83d\udccb"}</span>
+                  <span style={{fontSize:14,fontWeight:600,color:'var(--gold)'}}>MOU Wish List</span>
+                  <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{fontSize:11,color:'var(--text-muted)'}}>{mouwishEnabled?'ON':'OFF'}</span>
+                    <div onClick={()=>{const nv=!mouwishEnabled;setMouwishEnabled(nv);saveOrder(orderedItems,undefined,undefined,nv);}} style={{width:36,height:20,borderRadius:10,background:mouwishEnabled?'#27AE60':'var(--surface-raised)',border:'1px solid var(--border)',position:'relative',cursor:'pointer',transition:'all .2s',flexShrink:0}}>
+                      <div style={{width:16,height:16,borderRadius:'50%',background:'white',position:'absolute',top:1,left:mouwishEnabled?18:1,transition:'all .2s'}}/>
+                    </div>
+                  </div>
+                </div>
+                <div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Embedded contract wishlist board with member voting</div>
+              </div>
+            </div>;
+          }
+          const p=item.data;
          return <AdminAnnItem key={item.id} p={p} idx={idx} total={orderedItems.length} onMove={moveItem} onEdit={startEdit} onDelete={handleDelete}/>;
        })
       }
