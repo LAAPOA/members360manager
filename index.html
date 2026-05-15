@@ -1621,6 +1621,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const[videoUrl,setVideoUrl]=useState('');
   const[videoEnabled,setVideoEnabled]=useState(false);
   const[mouwishEnabled,setMouwishEnabled]=useState(false);
+  const[mouwishDeadline,setMouwishDeadline]=useState('');
   const bodyRef=React.useRef(null);
 
   const getBody=()=>bodyRef.current?bodyRef.current.innerHTML.trim():'';
@@ -1636,6 +1637,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
       setVideoUrl(res.videoUrl||'');
       setVideoEnabled(res.videoEnabled||false);
       setMouwishEnabled(res.mouwishEnabled||false);
+      setMouwishDeadline(res.mouwishDeadline||'');
       const ao=res.announcementOrder||[];
       const bday={type:'birthday',id:'BIRTHDAYS'};
       const video={type:'video',id:'VIDEO'};
@@ -1688,12 +1690,13 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const cancelEdit=()=>{setEditId(null);setTitle('');setBodyHtml('');};
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
-const saveOrder=async(items,vUrl,vEnabled,mwEnabled)=>{
+  const saveOrder=async(items,vUrl,vEnabled,mwEnabled,mwDeadline)=>{
     const order=items.map(i=>String(i.id));
     const payload={token:authToken,order:order};
     if(vUrl!==undefined)payload.videoUrl=vUrl;
     if(vEnabled!==undefined)payload.videoEnabled=vEnabled;
     if(mwEnabled!==undefined)payload.mouwishEnabled=mwEnabled;
+    if(mwDeadline!==undefined)payload.mouwishDeadline=mwDeadline;
     await api(backendUrl,'saveAnnouncementOrder',payload);
     flash('Order saved');
   };
@@ -1803,6 +1806,7 @@ const saveOrder=async(items,vUrl,vEnabled,mwEnabled)=>{
             </div>;
           }
           if(item.type==='mouwish'){
+            const dtVal = mouwishDeadline ? new Date(mouwishDeadline).toISOString().slice(0,16) : '';
             return <div key="MOUWISH_VIEWER" style={{padding:14,marginBottom:8,background:'linear-gradient(135deg,#1a1530,var(--navy))',border:'2px dashed var(--gold)',borderRadius:8,display:'flex',alignItems:'center',gap:10}}>
               <div style={{display:'flex',flexDirection:'column',gap:2}}>
                 <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
@@ -1814,12 +1818,17 @@ const saveOrder=async(items,vUrl,vEnabled,mwEnabled)=>{
                   <span style={{fontSize:14,fontWeight:600,color:'var(--gold)'}}>MOU Wish List</span>
                   <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:6}}>
                     <span style={{fontSize:11,color:'var(--text-muted)'}}>{mouwishEnabled?'ON':'OFF'}</span>
-                    <div onClick={()=>{const nv=!mouwishEnabled;setMouwishEnabled(nv);saveOrder(orderedItems,undefined,undefined,nv);}} style={{width:36,height:20,borderRadius:10,background:mouwishEnabled?'#27AE60':'var(--surface-raised)',border:'1px solid var(--border)',position:'relative',cursor:'pointer',transition:'all .2s',flexShrink:0}}>
+                    <div onClick={()=>{const nv=!mouwishEnabled;setMouwishEnabled(nv);saveOrder(orderedItems,undefined,undefined,nv,undefined);}} style={{width:36,height:20,borderRadius:10,background:mouwishEnabled?'#27AE60':'var(--surface-raised)',border:'1px solid var(--border)',position:'relative',cursor:'pointer',transition:'all .2s',flexShrink:0}}>
                       <div style={{width:16,height:16,borderRadius:'50%',background:'white',position:'absolute',top:1,left:mouwishEnabled?18:1,transition:'all .2s'}}/>
                     </div>
                   </div>
                 </div>
-                <div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Submit our MOU wish <a href="https://shortadrs.com/wishes" target="_blank" rel="noopener" style={{color:'var(--gold)'}}>here</a></div>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
+                  <span style={{fontSize:11,color:'var(--text-muted)',whiteSpace:'nowrap'}}>Deadline:</span>
+                  <input type="datetime-local" value={dtVal} onChange={e=>{const v=e.target.value?new Date(e.target.value).toISOString():'';setMouwishDeadline(v);saveOrder(orderedItems,undefined,undefined,undefined,v);}} style={{flex:1,padding:'4px 8px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:11,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                  {mouwishDeadline&&<button onClick={()=>{setMouwishDeadline('');saveOrder(orderedItems,undefined,undefined,undefined,'');}} style={{background:'none',border:'none',color:'var(--red)',cursor:'pointer',fontSize:14,padding:'0 4px',fontFamily:'inherit'}} title="Clear deadline">{"\u2715"}</button>}
+                </div>
+                <div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Submit our MOU wish <a href="https://shortadrs.com/wish" target="_blank" rel="noopener" style={{color:'var(--gold)'}}>here</a> {mouwishDeadline?'\u00b7 Auto-closes at deadline':''}</div>
               </div>
             </div>;
           }
