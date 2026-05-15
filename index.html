@@ -1806,7 +1806,12 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
             </div>;
           }
           if(item.type==='mouwish'){
-            const dtVal = mouwishDeadline ? new Date(mouwishDeadline).toISOString().slice(0,16) : '';
+            const dtVal = mouwishDeadline ? (() => {
+              const d = new Date(mouwishDeadline);
+              if (isNaN(d.getTime())) return '';
+              const pad = n => String(n).padStart(2, '0');
+              return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            })() : '';
             return <div key="MOUWISH_VIEWER" style={{padding:14,marginBottom:8,background:'linear-gradient(135deg,#1a1530,var(--navy))',border:'2px dashed var(--gold)',borderRadius:8,display:'flex',alignItems:'center',gap:10}}>
               <div style={{display:'flex',flexDirection:'column',gap:2}}>
                 <button style={{background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1}} onClick={()=>idx>0&&moveItem(idx,idx-1)}>{"\u25b2"}</button>
