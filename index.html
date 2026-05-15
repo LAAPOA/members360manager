@@ -1806,7 +1806,12 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
             </div>;
           }
           if(item.type==='mouwish'){
-            const dtVal = mouwishDeadline ? (() => {
+    const dtVal = mouwishDeadline ? (() => {
+              const d = new Date(mouwishDeadline);
+              if (isNaN(d.getTime())) return '';
+              const pad = n => String(n).padStart(2, '0');
+              return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            })() : '';
               const d = new Date(mouwishDeadline);
               if (isNaN(d.getTime())) return '';
               const pad = n => String(n).padStart(2, '0');
