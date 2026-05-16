@@ -1636,9 +1636,9 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
       setPosts(p);
       setVideoUrl(res.videoUrl||'');
       setVideoEnabled(res.videoEnabled||false);
-// mouwish config comes from mouwish-api (separate Worker, KV-backed)
+// mouwish config now comes from laapoa-api (reads wishlist sheet's AppConfig)
       try{
-        const mcRes=await fetch('https://mouwish-api.mike-a78.workers.dev/api/config');
+        const mcRes=await fetch(backendUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getMouwishDeadline'})});
         const mc=await mcRes.json();
         if(mc&&mc.ok){
           setMouwishEnabled(mc.enabled||false);
@@ -1703,16 +1703,13 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
     if(vUrl!==undefined)payload.videoUrl=vUrl;
     if(vEnabled!==undefined)payload.videoEnabled=vEnabled;
     await api(backendUrl,'saveAnnouncementOrder',payload);
-    // mouwish config goes to mouwish-api (separate Worker, KV-backed)
+// mouwish config now writes to laapoa-api (writes wishlist sheet's AppConfig)
     if(mwEnabled!==undefined||mwDeadline!==undefined){
-      const cfg={appToken:'8f8d1e2d16e4d2da0a6016ff3a124d2194cbf1570c77f20ccd0255322e3fe985'};
-      if(mwEnabled!==undefined)cfg.enabled=mwEnabled;
-      if(mwDeadline!==undefined)cfg.deadline=mwDeadline;
       try{
-        await fetch('https://mouwish-api.mike-a78.workers.dev/api/config/save',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(cfg)
+        await api(backendUrl,'saveMouwishConfig',{
+          token:authToken,
+          enabled:mwEnabled,
+          deadline:mwDeadline
         });
       }catch(e){}
     }
