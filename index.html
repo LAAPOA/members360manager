@@ -1225,6 +1225,7 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
   const[drawDate,setDrawDate]=useState('');
   const[winnerCount,setWinnerCount]=useState(1);
   const[allowRepeatWins,setAllowRepeatWins]=useState(false);
+  const[eventType,setEventType]=useState('');
   const[saving,setSaving]=useState(false);
   const[spinGiveaway,setSpinGiveaway]=useState(null);
   const[eventsEnabled,setEventsEnabled]=useState(true);
@@ -1265,12 +1266,15 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
     else{flash('Error toggling events tab');}
   };
 
-  const handleCreate=async()=>{
-    const d=getDesc();if(!title.trim())return;setSaving(true);
+    const handleCreate=async()=>{
+    const d=getDesc();if(!title.trim())return;
+    const et=eventType.trim();if(!et){flash('Event type is required');return;}
+    setSaving(true);
     const winBody=winEmailRef.current?winEmailRef.current.innerHTML.trim():'';
     const thanksBody=thanksEmailRef.current?thanksEmailRef.current.innerHTML.trim():'';
-    const res=await api(backendUrl,'createGiveaway',{token:authToken,title:title.trim(),description:d,drawDate:drawDate,winnerCount:winnerCount,winnerEmailBody:winBody,thanksEmailBody:thanksBody,allowRepeatWins:allowRepeatWins});
-    setSaving(false);if(res.ok){flash('Giveaway created');setTitle('');setDescHtml('');setDrawDate('');setWinnerCount(1);setAllowRepeatWins(false);if(winEmailRef.current)winEmailRef.current.innerHTML='';if(thanksEmailRef.current)thanksEmailRef.current.innerHTML='';loadGiveaways();}
+    const res=await api(backendUrl,'createGiveaway',{token:authToken,title:title.trim(),description:d,drawDate:drawDate,winnerCount:winnerCount,winnerEmailBody:winBody,thanksEmailBody:thanksBody,allowRepeatWins:allowRepeatWins,eventType:et});
+    setSaving(false);if(res.ok){flash('Giveaway created');setTitle('');setEventType('');setDescHtml('');setDrawDate('');setWinnerCount(1);setAllowRepeatWins(false);if(winEmailRef.current)winEmailRef.current.innerHTML='';if(thanksEmailRef.current)thanksEmailRef.current.innerHTML='';loadGiveaways();}
+    else flash(res.error||'Error creating giveaway');
   };
 
   const handleDelete=async(id)=>{
@@ -1354,6 +1358,13 @@ function EventsPanel({onClose,backendUrl,authToken,flash}){
       <div style={{marginBottom:20,padding:16,background:'var(--surface-raised)',borderRadius:8,border:'1px solid var(--border)'}}>
         <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>New Giveaway</div>
         <input type="text" value={title} onChange={ev=>setTitle(ev.target.value)} placeholder="Title (e.g. Dodgers Tickets)" style={{width:'100%',marginBottom:8,padding:'8px 12px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:14,fontFamily:'inherit',boxSizing:'border-box'}}/>
+                <div style={{marginBottom:8}}>
+          <label style={{fontSize:11,color:'var(--text-muted)',display:'block',marginBottom:4}}>Event type <span style={{color:'var(--red)'}}>*</span> <span style={{color:'var(--text-muted)'}}>— winners of this type are blocked from re-entering (e.g. NFL26)</span></label>
+          <input type="text" list="gwEventTypeList" value={eventType} onChange={ev=>setEventType(ev.target.value)} placeholder="e.g. NFL26" autoComplete="off" style={{width:'100%',padding:'8px 12px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:14,fontFamily:'inherit',boxSizing:'border-box'}}/>
+          <datalist id="gwEventTypeList">
+            {Array.from(new Set(giveaways.map(g=>(g.eventType||'').trim()).filter(Boolean))).map(t=><option key={t} value={t}/>)}
+          </datalist>
+        </div>
         <div className="ann-toolbar" style={{display:'flex',gap:2,padding:6,background:'var(--navy)',border:'1px solid var(--border)',borderBottom:'none',borderRadius:'6px 6px 0 0',overflowX:'auto',overflowY:'hidden',WebkitOverflowScrolling:'touch',flexWrap:'nowrap',scrollbarWidth:'none'}}>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('undo')}>{"\u21a9"}</button>
           <button style={tbStyle} onMouseDown={e=>e.preventDefault()} onClick={()=>execCmd('redo')}>{"\u21aa"}</button>
