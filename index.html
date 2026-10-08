@@ -547,7 +547,9 @@ function parseCSV(text){
   if(cur.length>1||cur[0]!=='')lines.push(cur);
   return lines;
 }
-
+  
+function normCid(c){return String(c==null?'':c).trim().toUpperCase().replace(/^0+/,'');}
+  
 function parseDate(d){
   if(!d)return'';
   // Handle "14-AUG-2023" format
@@ -714,7 +716,7 @@ function ImportPanel({onClose,onImport,existingMembers}){
     <div className="pf">
       {parsed&&<button className="btn" onClick={()=>setParsed(null)}>Back</button>}
       <button className="btn" onClick={onClose}>Cancel</button>
-      {parsed&&<button className="btn btn-gold" disabled={filtered.length===0||importing} onClick={()=>{setImporting(true);onImport(filtered);}}>{IC.plus} Import {stats.newCount} New Record{stats.newCount!==1?'s':''}</button>}
+      {parsed&&<button className="btn btn-gold" disabled={filtered.length===0||importing} onClick={()=>{setImporting(true);onImport(filtered,parsed);}}>{IC.plus} Import {stats.newCount} New Record{stats.newCount!==1?'s':''}</button>}
     </div>
   </div></div>);
 }
@@ -1879,6 +1881,32 @@ function App(){
   const stored=useMemo(()=>{try{const s=localStorage.getItem('laapoa_session');return s?JSON.parse(s):null;}catch(e){return null;}},[]);
   const[authToken,setAuthToken]=useState(stored?.token||null);const[user,setUser]=useState(stored?.user||null);const[backendUrl,setBackendUrl]=useState(stored?.url||API_URL);const[demoMode,setDemoMode]=useState(false);
   const[members,setMembers]=useState([]);const[groups,setGroups]=useState([]);const[search,setSearch]=useState("");const[filters,setFilters]=useState({});const[selected,setSelected]=useState(new Set());const[panel,setPanel]=useState(null);const[editMember,setEditMember]=useState(null);const[toast,setToast]=useState("");const[sortCol,setSortCol]=useState("name");const[sortDir,setSortDir]=useState(1);const[loading,setLoading]=useState(false);const[deleteConfirm,setDeleteConfirm]=useState(null);const[viewMember,setViewMember]=useState(null);const[mobileMenu,setMobileMenu]=useState(false);const[unreadCount,setUnreadCount]=useState(0);const[importAlerts,setImportAlerts]=useState(null);
+    const[importFlags,setImportFlags]=useState(()=>{try{return JSON.parse(localStorage.getItem('laapoa_import_flags')||'null');}catch(e){return null;}});
+  const[flagFilter,setFlagFilter]=useState(false);
+  const ON_ROLLS=['Active','Probationary','Pending','Lateral'];
+  const flagOf=(m)=>{
+    if(!importFlags||!ON_ROLLS.includes(m.memberStatus))return null;
+    const k=normCid(m.cid);
+    if(!k)return (importFlags.nocid||[]).includes(String(m.id))?'nocid':null;
+    if((importFlags.missing||[]).includes(k))return 'missing';
+    if((importFlags.term||[]).includes(k))return 'term';
+    return null;
+  };
+  const flagMissing=(allRows)=>{
+    const byCid=new Map(allRows.map(r=>[normCid(r.cid),r]));
+    const missing=[],term=[],nocid=[];
+    members.forEach(m=>{
+      if(!ON_ROLLS.includes(m.memberStatus))return;
+      const k=normCid(m.cid);
+      if(!k){nocid.push(String(m.id));return;}
+      const r=byCid.get(k);
+      if(!r)missing.push(k);else if(r.memberStatus==='Terminated')term.push(k);
+    });
+    const f={date:new Date().toLocaleString(),missing,term,nocid};
+    setImportFlags(f);try{localStorage.setItem('laapoa_import_flags',JSON.stringify(f));}catch(e){}
+    return missing.length+term.length+nocid.length;
+  };
+  const clearFlags=()=>{setImportFlags(null);setFlagFilter(false);try{localStorage.removeItem('laapoa_import_flags');}catch(e){}};
   const flash=m=>{setToast(m);setTimeout(()=>setToast(""),2500);};
   const handleLogin=(token,userData,url)=>{setAuthToken(token);setUser(userData);setBackendUrl(url);setDemoMode(false);try{localStorage.setItem('laapoa_session',JSON.stringify({token,user:userData,url}));}catch(e){}loadData(url,token);};
   const handleDemo=()=>{setDemoMode(true);setUser({username:"demo",displayName:"Demo User",email:"demo@laapoa.com",role:"admin"});setMembers(DEMO_MEMBERS);setGroups(DEMO_SAVED_GROUPS);};
@@ -1891,7 +1919,8 @@ function App(){
   if(!user)return<LoginScreen onLogin={handleLogin} onDemo={handleDemo}/>;
 
   const afc=Object.values(filters).filter(v=>v.length>0).length;
-  const filtered=members.filter(m=>{if(search){const s=search.toLowerCase();if(!Object.values(m).some(v=>String(v).toLowerCase().includes(s)))return false;}for(const[k,vs]of Object.entries(filters)){if(vs.length>0&&!vs.includes(m[k]))return false;}return true;});
+    const flaggedCount=importFlags?members.filter(m=>flagOf(m)).length:0;
+  const filtered=members.filter(m=>{if(flagFilter&&!flagOf(m))return false;if(search){const s=search.toLowerCase();if(!Object.values(m).some(v=>String(v).toLowerCase().includes(s)))return false;}for(const[k,vs]of Object.entries(filters)){if(vs.length>0&&!vs.includes(m[k]))return false;}return true;});
   const sorted=[...filtered].sort((a,b)=>{const va=(a[sortCol]||"").toString().toLowerCase(),vb=(b[sortCol]||"").toString().toLowerCase();return va<vb?-sortDir:va>vb?sortDir:0;});
   const toggleSort=c=>{sortCol===c?setSortDir(d=>-d):(setSortCol(c),setSortDir(1));};
   const toggleSelect=id=>setSelected(s=>{const n=new Set(s);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -1902,9 +1931,11 @@ function App(){
   const handleSendEmail=async({subject,body,recipients})=>{if(demoMode){flash(`[Demo] Email queued to ${recipients.length} recipient(s)`);setPanel(null);return;}setLoading(true);const res=await api(backendUrl,'sendEmail',{token:authToken,recipients:recipients.map(r=>({email:r.email,name:r.name,rank:r.rank})),subject,body});setLoading(false);if(res.ok){flash(`Sent ${res.sent}/${res.total} emails`+(res.errors?.length?` (${res.errors.length} failed)`:''));}else{flash("Error: "+(res.error||"send failed"));}setPanel(null);};
   const handleSaveGroups=async(newGroups)=>{setGroups(newGroups);if(!demoMode){await api(backendUrl,'saveGroups',{token:authToken,groups:newGroups});}};
 
-  const handleImport=async(newMembers)=>{
-    if(demoMode){setMembers(ms=>[...ms,...newMembers]);flash(`Imported ${newMembers.length} members`);setPanel(null);return;}
-    setLoading(true);
+    const handleImport=async(newMembers,allRows)=>{
+    const nFlag=flagMissing(allRows||newMembers);
+    if(nFlag>0)setFlagFilter(true);
+    if(demoMode){setMembers(ms=>[...ms,...newMembers]);flash(`Imported ${newMembers.length} members · ${nFlag} flagged`);setPanel(null);return;}
+  setLoading(true);
     const res=await api(backendUrl,'importMembers',{token:authToken,members:newMembers});
     await loadData(backendUrl,authToken);setLoading(false);
     if(res.ok){
@@ -1930,6 +1961,7 @@ function App(){
         <div className="nav-section">Members</div>
         <button className="nav-item active" onClick={()=>setMobileMenu(false)}>{IC.users} Members</button>
         <button className="nav-item" onClick={()=>{setPanel("import");setMobileMenu(false);}}>{IC.upload} Import CSV</button>
+          {importFlags&&<button className={`nav-item ${flagFilter?"active":""}`} onClick={()=>{setFlagFilter(!flagFilter);setPanel(null);setMobileMenu(false);}} title={'From import on '+importFlags.date}>{"\u26a0\ufe0f"} Not on Import{flaggedCount>0?<span className="notif-badge" style={{background:'#E67E22'}}>{flaggedCount}</span>:<span className="cnt">0</span>}</button>}
         <button className="nav-item" onClick={()=>{setPanel("email");setMobileMenu(false);}}>{IC.mail} Compose Email</button>
         <button className="nav-item" onClick={()=>{setPanel("notifications");setMobileMenu(false);}}>{IC.bell} Notifications {unreadCount>0&&<span className="notif-badge">{unreadCount}</span>}</button>
         <div className="nav-section">Groups</div>
@@ -1945,6 +1977,8 @@ function App(){
         <button className="hamburger" onClick={()=>setMobileMenu(true)}>{IC.menu}</button>
         <div className="search-box">{IC.search}<input placeholder="Search members..." value={search} onChange={e=>setSearch(e.target.value)}/></div>
         <button className="btn" onClick={()=>setPanel("filter")}>{IC.filter} Filters {afc>0&&<span style={{color:"var(--gold)"}}>({afc})</span>}</button>
+        {flagFilter&&<span className="pill" style={{borderColor:'#E67E22',color:'#E67E22',background:'rgba(230,126,34,.12)'}}>Not on import ({importFlags?.date})<button style={{color:'#E67E22'}} onClick={()=>setFlagFilter(false)}>{IC.xsm}</button></span>}
+        {importFlags&&<button className="btn btn-sm" onClick={()=>{if(confirm('Clear all import flags?'))clearFlags();}}>Clear Flags</button>}
         {activePills.length>0&&<div className="pills">{activePills.map(p=><span className="pill" key={p.key+p.value}>{p.label}: {p.value}<button onClick={()=>setFilters(f=>({...f,[p.key]:(f[p.key]||[]).filter(v=>v!==p.value)}))}>{IC.xsm}</button></span>)}<button className="btn btn-sm" onClick={()=>setFilters({})}>Clear</button></div>}
         <div style={{flex:1}}/>
         {selected.size>0&&<button className="btn btn-outline-gold" onClick={()=>setPanel("email")}>{IC.mail} Email {selected.size} Selected</button>}
@@ -1961,7 +1995,7 @@ function App(){
         </tr></thead><tbody>
           {sorted.map(m=><tr key={m.id}>
             <td><div className={`chk ${selected.has(m.id)?"on":""}`} onClick={()=>toggleSelect(m.id)}>{selected.has(m.id)&&IC.check}</div></td>
-            <td style={{fontWeight:600,cursor:"pointer",color:"var(--gold-light)"}} onClick={()=>setViewMember(m)}>{m.name}</td>
+            <td style={{fontWeight:600,cursor:"pointer",color:"var(--gold-light)"}} onClick={()=>setViewMember(m)}>{m.name}{(()=>{const f=flagOf(m);if(!f)return null;const t={missing:['Not on import','#E67E22'],term:['Termed','var(--red)'],nocid:['No CID','var(--text-muted)']}[f];return <span style={{marginLeft:6,fontSize:10,fontWeight:600,padding:'2px 6px',borderRadius:8,background:'rgba(230,126,34,.12)',color:t[1]}}>{"\u26a0"} {t[0]}</span>;})()}</td>
             <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.serialNumber}</span></td>
             <td><span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12}}>{m.cid}</span></td>
             <td>{m.rank}</td>
