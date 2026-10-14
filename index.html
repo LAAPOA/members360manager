@@ -1633,6 +1633,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const[dragIdx,setDragIdx]=useState(null);
   const[videoUrl,setVideoUrl]=useState('');
   const[videoEnabled,setVideoEnabled]=useState(false);
+  const[meetingChat,setMeetingChat]=useState(false);
   const[mouwishEnabled,setMouwishEnabled]=useState(false);
   const[mouwishDeadline,setMouwishDeadline]=useState('');
   const bodyRef=React.useRef(null);
@@ -1649,6 +1650,7 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
       setPosts(p);
       setVideoUrl(res.videoUrl||'');
       setVideoEnabled(res.videoEnabled||false);
+      setMeetingChat(res.meetingChat||false);
 // mouwish config now comes from laapoa-api (reads wishlist sheet's AppConfig)
       try{
         const mcRes=await fetch(backendUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getMouwishDeadline'})});
@@ -1710,11 +1712,12 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
   const cancelEdit=()=>{setEditId(null);setTitle('');setBodyHtml('');};
   const insertLink=()=>{const url=prompt('Enter URL:','https://');if(url)execCmd('createLink',url);};
 
- const saveOrder=async(items,vUrl,vEnabled,mwEnabled,mwDeadline)=>{
+ const saveOrder=async(items,vUrl,vEnabled,mwEnabled,mwDeadline,mcEnabled)=>{
     const order=items.map(i=>String(i.id));
     const payload={token:authToken,order:order};
     if(vUrl!==undefined)payload.videoUrl=vUrl;
     if(vEnabled!==undefined)payload.videoEnabled=vEnabled;
+    if(mcEnabled!==undefined)payload.meetingChat=mcEnabled;
     await api(backendUrl,'saveAnnouncementOrder',payload);
 // mouwish config now writes to laapoa-api (writes wishlist sheet's AppConfig)
     if(mwEnabled!==undefined||mwDeadline!==undefined){
@@ -1830,6 +1833,17 @@ function AnnouncementsPanel({onClose,backendUrl,authToken,flash}){
                </div>
                <input type="text" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} onBlur={()=>saveOrder(orderedItems,videoUrl,videoEnabled)} placeholder="YouTube URL or livestream link" style={{width:'100%',padding:'6px 10px',background:'var(--navy)',border:'1px solid var(--border)',borderRadius:6,color:'var(--text)',fontSize:12,fontFamily:'inherit',boxSizing:'border-box'}}/>
   {videoUrl&&<div style={{fontSize:10,color:'var(--text-muted)',marginTop:4}}>Members will see an embedded video player</div>}
+               <div style={{display:'flex',alignItems:'center',gap:8,marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+                 <span style={{fontSize:14}}>{"\ud83d\udcac"}</span>
+                 <div style={{flex:1}}>
+                   <div style={{fontSize:13,fontWeight:600,color:meetingChat?'#27AE60':'var(--text)'}}>Meeting day: Live tab (video + member chat)</div>
+                   <div style={{fontSize:10,color:'var(--text-muted)'}}>{meetingChat?'Members see a LIVE tab with this video and the chat - turn off when the meeting ends':'Turn on for meetings - uses the video link above'}</div>
+                 </div>
+                 <span style={{fontSize:11,color:'var(--text-muted)'}}>{meetingChat?'ON':'OFF'}</span>
+                 <div onClick={()=>{const nv=!meetingChat;if(nv&&!videoUrl.trim()&&!confirm('No video link above - turn on the Live tab with chat only?'))return;setMeetingChat(nv);saveOrder(orderedItems,videoUrl,undefined,undefined,undefined,nv);flash('Live tab '+(nv?'ON':'OFF'));}} style={{width:36,height:20,borderRadius:10,background:meetingChat?'#27AE60':'var(--surface-raised)',border:'1px solid var(--border)',position:'relative',cursor:'pointer',transition:'all .2s',flexShrink:0}}>
+                   <div style={{width:16,height:16,borderRadius:'50%',background:'white',position:'absolute',top:1,left:meetingChat?18:1,transition:'all .2s'}}/>
+                 </div>
+               </div>
               </div>
             </div>;
           }
